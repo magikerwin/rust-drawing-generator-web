@@ -30,6 +30,17 @@ cargo run --release
 
 > **Note:** Always use `--release` for optimized tensor math performance.
 
+#### 📊 Results
+
+After 5 epochs of training, the CNN model achieves the following on the MNIST validation set:
+
+| Metric              | Value    |
+|---------------------|----------|
+| **Validation Accuracy** | `~97%+`  |
+| **Validation Loss**     | `~0.10`  |
+
+![image](assets/training_mnist.png)
+
 ### Run Tests
 
 ```sh
@@ -88,14 +99,7 @@ cargo run --release -- --serve
 
 Then open **[http://127.0.0.1:3000](http://127.0.0.1:3000)** to draw digits and see real-time predictions!
 
-## 📊 Results
-
-After 5 epochs of training, the CNN model achieves the following on the MNIST validation set:
-
-| Metric              | Value    |
-|---------------------|----------|
-| **Validation Accuracy** | `~97%+`  |
-| **Validation Loss**     | `~0.10`  |
+![image](assets/web_demo_mnist.png)
 
 ## 📚 References
 

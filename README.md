@@ -17,6 +17,42 @@ To run the unit tests (verifies model shapes, data pipeline, and training config
 cargo test
 ```
 
+### Run Inference (Predict Digits)
+Once the model is trained and saved in `./target/mnist-model/`, you can load it to run inference on test images by passing the `--predict` flag:
+```powershell
+cargo run --release -- --predict
+```
+
+When run, the program will render a sample test digit in ASCII Art on your console and output the model's prediction:
+```text
+Loading model for inference...
+
+Input Image:
+      ######                
+      ################      
+      ################      
+           ###########      
+                  ####      
+                 ####       
+                 ####       
+                ####        
+                ####        
+               ####         
+               ###          
+              ####          
+             ####           
+            #####           
+            ####            
+           #####            
+           ####             
+          #####             
+          #####             
+          ####              
+                            
+Target Label (Ground Truth): 7
+Model Prediction           : 7
+```
+
 ## Expected Results
 
 After running the 5 epochs of training, the MLP model converges to the following performance on the MNIST validation/test dataset:

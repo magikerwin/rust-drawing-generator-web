@@ -3,6 +3,7 @@ use burn::{
     backend::NdArray,
     prelude::*,
     record::{CompactRecorder, Recorder},
+    tensor::activation::softmax,
 };
 
 /// Loads the trained model weights from the artifact directory and returns the Model.
@@ -36,6 +37,29 @@ pub fn predict(model: &Model<NdArray>, raw_image: [f32; 784], device: &<NdArray 
     value
 }
 
+/// Performs prediction on a raw 28x28 flattened image array, returning both the predicted digit and all 10 softmax probabilities.
+pub fn predict_probabilities(
+    model: &Model<NdArray>,
+    raw_image: [f32; 784],
+    device: &<NdArray as Backend>::Device,
+) -> (usize, Vec<f32>) {
+    // 1. Convert raw array to 2D Tensor [1, 784]
+    let input = Tensor::<NdArray, 1>::from_floats(raw_image, device)
+        .reshape([1, 784]);
+
+    // 2. Perform forward pass
+    let output = model.forward(input);
+
+    // 3. Extract the predicted class index using argmax
+    let predicted = output.clone().argmax(1).into_scalar() as usize;
+
+    // 4. Run softmax to get probability scores (values between 0.0 and 1.0)
+    let probs = softmax(output, 1);
+    let probs_vec = probs.into_data().into_vec::<f32>().expect("Failed to extract probability data");
+
+    (predicted, probs_vec)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -51,5 +75,24 @@ mod tests {
 
         // The predicted digit should be a valid class index between 0 and 9
         assert!(predicted_digit < 10);
+    }
+
+    #[test]
+    fn test_predict_probabilities() {
+        let device = Default::default();
+        let model = Model::<NdArray>::new(&device);
+
+        let dummy_image = [0.0f32; 784];
+        let (predicted_digit, probabilities) = predict_probabilities(&model, dummy_image, &device);
+
+        // 1. Predicted digit is valid
+        assert!(predicted_digit < 10);
+
+        // 2. We get exactly 10 probabilities (one for each digit 0-9)
+        assert_eq!(probabilities.len(), 10);
+
+        // 3. Softmax properties: sum of probabilities must be close to 1.0
+        let sum: f32 = probabilities.iter().sum();
+        assert!((sum - 1.0).abs() < 1e-5);
     }
 }

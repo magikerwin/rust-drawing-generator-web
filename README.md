@@ -6,20 +6,20 @@ A simple MNIST handwritten digit classifier built using the **Burn** deep learni
 
 ### Run Training
 To start the training loop (using the CPU ndarray backend):
-```powershell
+```sh
 cargo run --release
 ```
 *Note: Always run with the `--release` flag so that compiling takes advantage of compiler optimizations for tensor math.*
 
 ### Run Tests
 To run the unit tests (verifies model shapes, data pipeline, and training config):
-```powershell
+```sh
 cargo test
 ```
 
 ### Run Inference (Predict Digits)
 Once the model is trained and saved in `./target/mnist-model/`, you can load it to run inference on test images by passing the `--predict` flag:
-```powershell
+```sh
 cargo run --release -- --predict
 ```
 
@@ -53,9 +53,20 @@ Target Label (Ground Truth): 7
 Model Prediction           : 7
 ```
 
+### Run Interactive Web Server (Drawing Pad)
+Once the model is trained, you can start the interactive browser-based drawing board:
+```sh
+cargo run --release -- --serve
+```
+Then, open your web browser to **`http://127.0.0.1:3000`** to draw custom digits with your mouse/touch and view real-time model predictions!
+
 ## Expected Results
 
 After running the 5 epochs of training, the MLP model converges to the following performance on the MNIST validation/test dataset:
 
 *   **Validation Accuracy**: `95.53%`
 *   **Validation Loss**: `0.209`
+
+## References
+
+*   This project is based on and references the official [tracel-ai/burn MNIST example](https://github.com/tracel-ai/burn/blob/main/examples/mnist/examples/mnist.rs).

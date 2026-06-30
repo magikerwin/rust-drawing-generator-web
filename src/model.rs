@@ -1,6 +1,3 @@
-// TODO: Remove this warning suppression once the model is integrated into the training loop.
-#![allow(dead_code)]
-
 use burn::{
     nn::{Linear, LinearConfig},
     prelude::*,

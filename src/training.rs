@@ -1,6 +1,3 @@
-// TODO: Remove this warning suppression once training is integrated into main.rs.
-#![allow(dead_code)]
-
 use crate::{
     data::{MnistBatch, MnistBatcher},
     model::Model,

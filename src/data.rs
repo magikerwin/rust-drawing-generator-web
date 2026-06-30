@@ -1,6 +1,3 @@
-// TODO: Remove this warning suppression once the batcher is integrated into the training loop.
-#![allow(dead_code)]
-
 use burn::{
     data::{dataloader::batcher::Batcher, dataset::vision::MnistItem},
     prelude::*,

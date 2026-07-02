@@ -139,6 +139,26 @@ Compile the model to WebAssembly to run inference fully inside the browser clien
    ```
    Then navigate to **[http://localhost:4000](http://localhost:4000)** to draw digits and run serverless, client-side inference!
 
+## 🔮 Future Direction: Quick, Draw! Classification
+
+We plan to expand this project to support doodle classification using the public Google **[Quick, Draw! Dataset](https://github.com/googlecreativelab/quickdraw-dataset)**. 
+
+### Selected Categories (25 classes)
+Rather than training on all 345 categories (which totals 39 GB of raw bitmap data), we selected a curated subset of **25 diverse and easily sketchable classes**:
+* **Nature/Weather**: `sun`, `moon`, `star`, `cloud`, `mountain`, `tree`, `flower`
+* **Animals**: `cat`, `dog`, `fish`, `butterfly`
+* **Common Objects**: `cup`, `key`, `umbrella`, `hat`, `clock`, `envelope`, `toothbrush`
+* **Structures/Vehicles**: `house`, `car`
+* **Shapes/Drawings**: `smiley face`, `heart`
+* **Clothing**: `pants`, `t-shirt`
+* **Food**: `apple`
+
+### Key Design Considerations
+1. **Compute & Storage Constraints**: Restricting the dataset to 25 categories reduces the data footprint to ~250 MB, allowing the dataset to fit entirely in memory and train in minutes on a consumer GPU.
+2. **Model Capacity**: A simple CNN architecture struggles to differentiate 345 classes, but easily achieves high accuracy on 25 distinct shapes.
+3. **Canvas Drawability**: These categories are simple and iconic enough for humans to draw clearly on a small `28x28` pixel canvas.
+4. **License & Privacy**: The dataset is safe and free to use under the **Creative Commons Attribution 4.0 International (CC BY 4.0)** license, and contains no personally identifiable information (PII).
+
 ## 📚 References
 
 - [Burn — Deep Learning Framework for Rust](https://burn.dev/)

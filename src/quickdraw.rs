@@ -199,4 +199,54 @@ mod tests {
         assert_eq!(images[0][0][0], 1.0f32);
         assert_eq!(images[0][27][27], 1.0f32);
     }
+
+    #[test]
+    fn test_quickdraw_dataset_loading() {
+        use std::fs;
+        let cache_dir = Path::new("./target/quickdraw_dataset");
+        fs::create_dir_all(cache_dir).ok();
+
+        // Construct a helper to generate minimal valid mock .npy bytes representing N samples
+        let make_mock_npy = |num_samples: usize| -> Vec<u8> {
+            let mut npy_data = Vec::new();
+            npy_data.extend_from_slice(b"\x93NUMPY\x01\x00");
+            let header_str = format!("{{'descr': '<u1', 'fortran_order': False, 'shape': ({}, 784)}}", num_samples);
+            let mut header_bytes = header_str.as_bytes().to_vec();
+            while (10 + header_bytes.len() + 1) % 64 != 0 {
+                header_bytes.push(b' ');
+            }
+            header_bytes.push(b'\n');
+            let header_len = header_bytes.len();
+            npy_data.extend_from_slice(&(header_len as u16).to_le_bytes());
+            npy_data.extend_from_slice(&header_bytes);
+            npy_data.extend(std::iter::repeat(128).take(num_samples * 784));
+            npy_data
+        };
+
+        // Write mock files for all 25 classes if they don't exist, so the test doesn't trigger network downloads
+        let mut created_paths = Vec::new();
+        for class_name in QUICKDRAW_CLASSES.iter() {
+            let path = cache_dir.join(format!("{}.npy", class_name));
+            if !path.exists() {
+                let data = make_mock_npy(TOTAL_SAMPLES_PER_CLASS);
+                fs::write(&path, data).unwrap();
+                created_paths.push(path);
+            }
+        }
+
+        // Test training set construction (request 5 samples per class)
+        let train_dataset = QuickDrawDataset::new(true, 5);
+        assert_eq!(train_dataset.len(), 25 * 5);
+        let sample = train_dataset.get(0).unwrap();
+        assert_eq!(sample.label, 0);
+
+        // Test validation set construction (request 2 samples per class)
+        let valid_dataset = QuickDrawDataset::new(false, 2);
+        assert_eq!(valid_dataset.len(), 25 * 2);
+
+        // Clean up only the mock files created during the test
+        for path in created_paths {
+            fs::remove_file(path).ok();
+        }
+    }
 }

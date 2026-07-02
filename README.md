@@ -41,16 +41,26 @@ To train using your GPU (using the cross-platform `Wgpu` backend):
 cargo run --release -- --gpu
 ```
 
+To train doodle classification on the Google **Quick, Draw!** dataset (25 classes, downloads dataset dynamically):
+
+```sh
+# Train on CPU
+cargo run --release -- --dataset quickdraw
+
+# Train on GPU (cross-platform Wgpu backend)
+cargo run --release -- --dataset quickdraw --gpu
+```
+
 > **Note:** Always use `--release` for optimized tensor math performance.
 
 #### 📊 Results
 
-After 5 epochs of training, the CNN model achieves the following on the MNIST validation set:
+After 5 epochs of training, the CNN model achieves the following validation metrics:
 
-| Metric              | Value    |
-|---------------------|----------|
-| **Validation Accuracy** | `~97%+`  |
-| **Validation Loss**     | `~0.10`  |
+| Dataset | Validation Accuracy | Validation Loss |
+|---|---|---|
+| **MNIST** (10 classes) | `~97%+` | `~0.10` |
+| **Quick, Draw!** (25 classes) | `~80% - 85%` | `~0.50 - 0.70` |
 
 ![image](assets/training_mnist.png)
 

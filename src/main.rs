@@ -78,12 +78,20 @@ async fn predict_handler(
 
 #[tokio::main]
 async fn main() {
-    let artifact_dir = "./target/mnist-model";
-
     // CLI argument parsing
     let args: Vec<String> = std::env::args().collect();
     let run_inference = args.contains(&"--predict".to_string());
     let run_server = args.contains(&"--serve".to_string());
+    let run_gpu = args.contains(&"--gpu".to_string());
+
+    let dataset_arg = args.iter()
+        .position(|arg| arg == "--dataset")
+        .and_then(|pos| args.get(pos + 1))
+        .map(|s| s.as_str())
+        .unwrap_or("mnist");
+
+    let num_classes = if dataset_arg == "quickdraw" { quickdraw::QUICKDRAW_CLASSES.len() } else { 10 };
+    let artifact_dir = if dataset_arg == "quickdraw" { "./target/quickdraw-model" } else { "./target/mnist-model" };
 
     if run_server {
         // ==========================================
@@ -91,7 +99,7 @@ async fn main() {
         // ==========================================
         println!("Loading model for web server...");
         let device = Default::default(); // NdArray CPU device
-        let model = Arc::new(std::sync::Mutex::new(load_model(artifact_dir, &device, 10)));
+        let model = Arc::new(std::sync::Mutex::new(load_model(artifact_dir, &device, num_classes)));
         let state = AppState { model, device };
 
         // Construct Axum application routing
@@ -117,7 +125,7 @@ async fn main() {
         // ==========================================
         println!("Loading model for inference...");
         let device = Default::default();
-        let model = load_model(artifact_dir, &device, 10);
+        let model = load_model(artifact_dir, &device, num_classes);
 
         // Fetch a sample from the MNIST test dataset
         let test_dataset = MnistDataset::test();
@@ -156,32 +164,58 @@ async fn main() {
         // ==========================================
         // BRANCH C: RUN TRAINING LOOP
         // ==========================================
-        let run_gpu = args.contains(&"--gpu".to_string());
-
         let config = TrainingConfig::new(AdamConfig::new());
-        let train_dataset = MnistDataset::train();
-        let valid_dataset = MnistDataset::test();
 
-        if run_gpu {
-            println!("Starting MNIST training on GPU (WGPU backend)...");
-            train::<Autodiff<burn::backend::Wgpu>, _, _>(
-                artifact_dir,
-                config,
-                burn::backend::wgpu::WgpuDevice::default(),
-                train_dataset,
-                valid_dataset,
-                10,
-            );
+        if dataset_arg == "quickdraw" {
+            let train_dataset = quickdraw::QuickDrawDataset::new(true, quickdraw::TRAIN_SAMPLES_PER_CLASS);
+            let valid_dataset = quickdraw::QuickDrawDataset::new(false, quickdraw::VAL_SAMPLES_PER_CLASS);
+
+            if run_gpu {
+                println!("Starting Quick, Draw! training on GPU (WGPU backend)...");
+                train::<Autodiff<burn::backend::Wgpu>, _, _>(
+                    artifact_dir,
+                    config,
+                    burn::backend::wgpu::WgpuDevice::default(),
+                    train_dataset,
+                    valid_dataset,
+                    num_classes,
+                );
+            } else {
+                println!("Starting Quick, Draw! training on CPU (NdArray backend)...");
+                train::<Autodiff<NdArray>, _, _>(
+                    artifact_dir,
+                    config,
+                    Default::default(),
+                    train_dataset,
+                    valid_dataset,
+                    num_classes,
+                );
+            }
         } else {
-            println!("Starting MNIST training on CPU (NdArray backend)...");
-            train::<Autodiff<NdArray>, _, _>(
-                artifact_dir,
-                config,
-                Default::default(),
-                train_dataset,
-                valid_dataset,
-                10,
-            );
+            let train_dataset = MnistDataset::train();
+            let valid_dataset = MnistDataset::test();
+
+            if run_gpu {
+                println!("Starting MNIST training on GPU (WGPU backend)...");
+                train::<Autodiff<burn::backend::Wgpu>, _, _>(
+                    artifact_dir,
+                    config,
+                    burn::backend::wgpu::WgpuDevice::default(),
+                    train_dataset,
+                    valid_dataset,
+                    num_classes,
+                );
+            } else {
+                println!("Starting MNIST training on CPU (NdArray backend)...");
+                train::<Autodiff<NdArray>, _, _>(
+                    artifact_dir,
+                    config,
+                    Default::default(),
+                    train_dataset,
+                    valid_dataset,
+                    num_classes,
+                );
+            }
         }
         println!("Training finished! Model saved successfully to {}", artifact_dir);
     }

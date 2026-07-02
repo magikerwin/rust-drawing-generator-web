@@ -92,23 +92,28 @@ fn download_class_subset(class_name: &str, num_samples: usize, dest_path: &Path)
         "https://storage.googleapis.com/quickdraw_dataset/full/numpy_bitmap/{}.npy",
         encoded_class
     );
+    let dest_path_buf = dest_path.to_path_buf();
 
-    let client = reqwest::blocking::Client::new();
-    let response = client
-        .get(&url)
-        .header("Range", format!("bytes=0-{}", bytes_to_request - 1))
-        .send()
-        .map_err(|e| format!("Request failed: {}", e))?;
+    std::thread::spawn(move || {
+        let client = reqwest::blocking::Client::new();
+        let response = client
+            .get(&url)
+            .header("Range", format!("bytes=0-{}", bytes_to_request - 1))
+            .send()
+            .map_err(|e| format!("Request failed: {}", e))?;
 
-    if !response.status().is_success() && response.status() != reqwest::StatusCode::PARTIAL_CONTENT {
-        return Err(format!("Server returned error status: {}", response.status()));
-    }
+        if !response.status().is_success() && response.status() != reqwest::StatusCode::PARTIAL_CONTENT {
+            return Err(format!("Server returned error status: {}", response.status()));
+        }
 
-    let bytes = response.bytes().map_err(|e| format!("Failed to read bytes: {}", e))?;
-    let mut file = File::create(dest_path).map_err(|e| format!("Failed to create file: {}", e))?;
-    file.write_all(&bytes).map_err(|e| format!("Failed to write to file: {}", e))?;
+        let bytes = response.bytes().map_err(|e| format!("Failed to read bytes: {}", e))?;
+        let mut file = File::create(&dest_path_buf).map_err(|e| format!("Failed to create file: {}", e))?;
+        file.write_all(&bytes).map_err(|e| format!("Failed to write to file: {}", e))?;
 
-    Ok(())
+        Ok(())
+    })
+    .join()
+    .map_err(|_| "Download thread panicked".to_string())?
 }
 
 /// Simple parser to extract 28x28 grayscale normalized arrays from a `.npy` file.
@@ -218,14 +223,25 @@ mod tests {
             npy_data
         };
 
-        // Write mock files for all 25 classes if they don't exist, so the test doesn't trigger network downloads
-        let mut created_paths = Vec::new();
+        // RAII Cleanup Guard to ensure files are deleted even if the test panics
+        struct CleanupGuard {
+            paths: Vec<std::path::PathBuf>,
+        }
+        impl Drop for CleanupGuard {
+            fn drop(&mut self) {
+                for path in &self.paths {
+                    let _ = fs::remove_file(path);
+                }
+            }
+        }
+
+        let mut guard = CleanupGuard { paths: Vec::new() };
         for class_name in QUICKDRAW_CLASSES.iter() {
             let path = cache_dir.join(format!("{}.npy", class_name));
             if !path.exists() {
                 let data = make_mock_npy(TOTAL_SAMPLES_PER_CLASS);
                 fs::write(&path, data).unwrap();
-                created_paths.push(path);
+                guard.paths.push(path);
             }
         }
 
@@ -238,10 +254,5 @@ mod tests {
         // Test validation set construction (request 2 samples per class)
         let valid_dataset = QuickDrawDataset::new(false, 2);
         assert_eq!(valid_dataset.len(), QUICKDRAW_CLASSES.len() * 2);
-
-        // Clean up only the mock files created during the test
-        for path in created_paths {
-            fs::remove_file(path).ok();
-        }
     }
 }

@@ -2,9 +2,10 @@
 name = "rust"
 version = "0.1.0"
 edition = "2024"
+default-run = "rust" # Allows running 'cargo run' directly despite having multiple binaries (src/main.rs and src/bin/convert.rs)
 
 [dependencies]
-burn = { version = "0.16.0", features = ["ndarray", "train", "dataset", "vision"] }
+burn = { version = "0.16.0", features = ["ndarray", "wgpu", "train", "dataset", "vision"] }
 axum = "0.7.5"
 tokio = { version = "1.38", features = ["full"] }
 tower-http = { version = "0.5.2", features = ["fs"] }

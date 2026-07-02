@@ -29,8 +29,16 @@ Input [1×28×28]
 
 ### Train the Model
 
+By default, training runs on the CPU (using the `NdArray` backend):
+
 ```sh
 cargo run --release
+```
+
+To train using your GPU (using the cross-platform `Wgpu` backend):
+
+```sh
+cargo run --release -- --gpu
 ```
 
 > **Note:** Always use `--release` for optimized tensor math performance.

@@ -156,17 +156,31 @@ async fn main() {
         // ==========================================
         // BRANCH C: RUN TRAINING LOOP
         // ==========================================
-        type MyBackend = Autodiff<NdArray>;
-        let device = Default::default();
+        let run_gpu = args.contains(&"--gpu".to_string());
 
-        println!("Starting MNIST training on CPU (NdArray backend)...");
-        train::<MyBackend, _, _>(
-            artifact_dir,
-            TrainingConfig::new(AdamConfig::new()),
-            device,
-            MnistDataset::train(),
-            MnistDataset::test(),
-        );
+        let config = TrainingConfig::new(AdamConfig::new());
+        let train_dataset = MnistDataset::train();
+        let valid_dataset = MnistDataset::test();
+
+        if run_gpu {
+            println!("Starting MNIST training on GPU (WGPU backend)...");
+            train::<Autodiff<burn::backend::Wgpu>, _, _>(
+                artifact_dir,
+                config,
+                burn::backend::wgpu::WgpuDevice::default(),
+                train_dataset,
+                valid_dataset,
+            );
+        } else {
+            println!("Starting MNIST training on CPU (NdArray backend)...");
+            train::<Autodiff<NdArray>, _, _>(
+                artifact_dir,
+                config,
+                Default::default(),
+                train_dataset,
+                valid_dataset,
+            );
+        }
         println!("Training finished! Model saved successfully to {}", artifact_dir);
     }
 }

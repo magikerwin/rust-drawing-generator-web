@@ -2,6 +2,8 @@ mod model;
 mod data;
 mod training;
 mod inference;
+mod quickdraw;
+
 
 use burn::{
     backend::{Autodiff, NdArray},

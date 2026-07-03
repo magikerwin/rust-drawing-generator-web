@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - master
-  workflow_dispatch:
+  workflow_dispatch: # Allows manual trigger from the GitHub Actions tab (e.g., after uploading new model weights)
 
 permissions:
   contents: write

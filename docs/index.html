@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Burn MNIST Digit Classifier (WASM)</title>
+    <title>Burn Digit Classifier</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -48,11 +48,16 @@
 
         header {
             text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
         }
 
         header h1 {
             font-size: 2.5rem;
             font-weight: 800;
+            background: linear-gradient(135deg, #html-fff 0%, #818cf8 100%);
             background: linear-gradient(135deg, #fff 0%, #818cf8 100%);
             -webkit-background-clip: text;
             background-clip: text;
@@ -65,6 +70,64 @@
             color: var(--text-sub);
             font-size: 1rem;
             font-weight: 300;
+            max-width: 600px;
+        }
+
+        /* Responsive Dataset Tab Selector */
+        .selector-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 10px;
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            padding: 6px 14px;
+            border-radius: 30px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            animation: fadeIn 0.4s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .selector-label {
+            font-size: 0.8rem;
+            color: var(--text-sub);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 4px;
+        }
+
+        .tab-btn {
+            background-color: transparent;
+            border: 1px solid transparent;
+            color: var(--text-sub);
+            padding: 6px 14px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.8rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-main);
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .tab-btn.active {
+            background-color: var(--accent-glow);
+            color: #ffffff;
+            box-shadow: 0 0 10px rgba(99, 102, 241, 0.4);
         }
 
         .app-grid {
@@ -194,6 +257,25 @@
             display: flex;
             flex-direction: column;
             gap: 12px;
+            max-height: 480px;
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+
+        /* Custom scrollbar for probabilities list */
+        .probs-list::-webkit-scrollbar {
+            width: 6px;
+        }
+        .probs-list::-webkit-scrollbar-track {
+            background: #151821;
+            border-radius: 3px;
+        }
+        .probs-list::-webkit-scrollbar-thumb {
+            background: #2a2e3d;
+            border-radius: 3px;
+        }
+        .probs-list::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-glow);
         }
 
         .prob-row {
@@ -203,12 +285,16 @@
         }
 
         .digit-label {
-            font-size: 1.1rem;
-            font-weight: 800;
-            width: 16px;
-            text-align: center;
+            font-size: 1rem;
+            font-weight: 600;
+            width: 110px;
+            text-align: left;
+            text-transform: capitalize;
             color: var(--text-sub);
             transition: color 0.2s ease;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .digit-label.active {
@@ -262,8 +348,15 @@
 
 <div class="container">
     <header>
-        <h1>Burn Digit Classifier (WASM)</h1>
-        <p>Draw a digit in the box below to run real-time inference client-side using WebAssembly</p>
+        <h1 id="appTitle">Burn Digit Classifier</h1>
+        <p id="appDesc">Draw a digit in the box below to run real-time inference</p>
+        <div id="datasetSelector" class="selector-container" style="display: none;">
+            <span class="selector-label">Model:</span>
+            <div class="tabs">
+                <button class="tab-btn active" id="tabMnist" data-dataset="mnist">MNIST Digits</button>
+                <button class="tab-btn" id="tabQuickdraw" data-dataset="quickdraw">Quick Draw</button>
+            </div>
+        </div>
     </header>
 
     <div class="app-grid">
@@ -283,25 +376,23 @@
             <div class="results-header">
                 <div class="results-title">Probabilities</div>
                 <div class="predict-indicator">
-                    <span class="predict-dot loading" id="statusDot"></span>
-                    <span id="statusText">Loading WASM model...</span>
+                    <span class="predict-dot idle" id="statusDot"></span>
+                    <span id="statusText">Awaiting drawing...</span>
                 </div>
             </div>
 
             <div class="probs-list" id="probsList">
-                <!-- 10 rows for digits 0-9 will be injected here -->
+                <!-- List rows will be dynamically injected -->
             </div>
         </div>
     </div>
 
     <footer>
-        Powered by Rust, Burn Deep Learning Framework & WebAssembly
+        Powered by Rust & Burn Deep Learning Framework
     </footer>
 </div>
 
-<script type="module">
-    import init, { MnistPredictor } from './pkg/mnist_web.js';
-
+<script>
     const canvas = document.getElementById('drawingCanvas');
     const ctx = canvas.getContext('2d');
     const wrapper = document.getElementById('canvasWrapper');
@@ -310,23 +401,28 @@
     const statusText = document.getElementById('statusText');
     const probsList = document.getElementById('probsList');
 
-    // Predictor instance
-    let predictor = null;
+    const datasetSelector = document.getElementById('datasetSelector');
+    const tabMnist = document.getElementById('tabMnist');
+    const tabQuickdraw = document.getElementById('tabQuickdraw');
 
-    // Initialize drawings list
-    let rowsHTML = '';
-    for (let i = 0; i < 10; i++) {
-        rowsHTML += `
-            <div class="prob-row" id="row-${i}">
-                <div class="digit-label" id="label-${i}">${i}</div>
-                <div class="progress-bar-bg">
-                    <div class="progress-bar-fill" id="bar-${i}"></div>
-                </div>
-                <div class="value-label" id="val-${i}">0.0%</div>
-            </div>
-        `;
-    }
-    probsList.innerHTML = rowsHTML;
+    // Offline client-side class categories configurations
+    const mnistClasses = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+    const quickdrawClasses = [
+        "triangle", "circle", "square", "sun", "moon", "star", "tree", "flower",
+        "cat", "dog", "fish", "butterfly", "cup", "key", "umbrella", "hat",
+        "clock", "envelope", "toothbrush", "house", "car", "smiley face", "pants", "t-shirt", "apple"
+    ];
+
+    // Current app configuration state (either loaded from Axum backend or selected locally in WASM mode)
+    let appConfig = {
+        dataset: 'mnist',
+        classes: mnistClasses
+    };
+
+    // Client-side execution mode ('server' or 'wasm')
+    let runMode = 'server'; 
+    let wasmModule = null;
+    let predictor = null;
 
     // Drawing state
     let isDrawing = false;
@@ -340,48 +436,175 @@
     ctx.shadowBlur = 4;
     ctx.shadowColor = '#ffffff';
 
-    // Clear Canvas
+    // Set black background initially
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Initial page configurations loading
+    fetch('/api/config')
+        .then(res => {
+            if (!res.ok) throw new Error('Not server mode');
+            return res.json();
+        })
+        .then(config => {
+            // Entered Server-Backed Mode
+            runMode = 'server';
+            appConfig = config;
+            initUI();
+        })
+        .catch(() => {
+            // Failed to fetch backend config: Entered Offline WASM Mode
+            runMode = 'wasm';
+            datasetSelector.style.display = 'flex';
+            setupWasmTabs();
+            
+            // Default to MNIST and load WASM
+            appConfig = {
+                dataset: 'mnist',
+                classes: mnistClasses
+            };
+            initUI();
+            loadWasmPredictor();
+        });
+
+    function initUI() {
+        const isQuickdraw = appConfig.dataset === 'quickdraw';
+        
+        // Update Title & Heading labels
+        const modeLabel = runMode === 'wasm' ? ' (WASM)' : '';
+        document.title = isQuickdraw 
+            ? `Burn Quick, Draw! Doodle Classifier${modeLabel}` 
+            : `Burn MNIST Digit Classifier${modeLabel}`;
+            
+        document.getElementById('appTitle').innerText = isQuickdraw 
+            ? `Burn Quick, Draw! Doodle Classifier${modeLabel}` 
+            : `Burn MNIST Digit Classifier${modeLabel}`;
+            
+        document.getElementById('appDesc').innerText = isQuickdraw 
+            ? 'Draw one of the 25 doodle categories in the box below to run real-time inference' 
+            : 'Draw a digit in the box below to run real-time inference';
+
+        // Dynamically populate probability list rows
+        let rowsHTML = '';
+        appConfig.classes.forEach((className, i) => {
+            rowsHTML += `
+                <div class="prob-row" id="row-${i}">
+                    <div class="digit-label" id="label-${i}">${className}</div>
+                    <div class="progress-bar-bg">
+                        <div class="progress-bar-fill" id="bar-${i}"></div>
+                    </div>
+                    <div class="value-label" id="val-${i}">0.0%</div>
+                </div>
+            `;
+        });
+        probsList.innerHTML = rowsHTML;
+
+        // Reset canvas & results
+        clearCanvas();
+    }
+
+    // Set up tabs for WASM Mode dataset selection
+    function setupWasmTabs() {
+        [tabMnist, tabQuickdraw].forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                const dataset = e.currentTarget.getAttribute('data-dataset');
+                if (appConfig.dataset === dataset) return;
+
+                // Toggle active tab style
+                tabMnist.classList.toggle('active', dataset === 'mnist');
+                tabQuickdraw.classList.toggle('active', dataset === 'quickdraw');
+
+                // Update configuration
+                appConfig = {
+                    dataset: dataset,
+                    classes: dataset === 'quickdraw' ? quickdrawClasses : mnistClasses
+                };
+                
+                initUI();
+                loadWasmPredictor();
+            });
+        });
+    }
+
+    // Loads/Switches the WASM Predictors dynamically (only fetches when necessary)
+    async function loadWasmPredictor() {
+        predictor = null;
+        statusDot.className = 'predict-dot loading';
+        statusText.innerText = 'Loading WASM model...';
+
+        try {
+            if (!wasmModule) {
+                // Dynamically import WASM module (saves 1.8 MB bandwidth in server mode)
+                wasmModule = await import('./pkg/mnist_web.js');
+                await wasmModule.default();
+            }
+
+            if (appConfig.dataset === 'quickdraw') {
+                predictor = new wasmModule.QuickdrawPredictor();
+            } else {
+                predictor = new wasmModule.MnistPredictor();
+            }
+
+            statusDot.className = 'predict-dot idle';
+            statusText.innerText = 'Awaiting drawing...';
+        } catch (err) {
+            console.error('Failed to load WASM predictor:', err);
+            statusText.innerText = 'WASM load failed!';
+            statusDot.className = 'predict-dot idle';
+        }
+    }
+
+    // Clear Drawing Pad & bars
     function clearCanvas() {
         ctx.fillStyle = '#000000';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         hasDrawn = false;
         resetBars();
-        if (predictor) {
-            statusDot.className = 'predict-dot idle';
-            statusText.innerText = 'Awaiting drawing...';
-        } else {
+        
+        if (runMode === 'wasm' && !predictor) {
             statusDot.className = 'predict-dot loading';
             statusText.innerText = 'Loading WASM model...';
+        } else {
+            statusDot.className = 'predict-dot idle';
+            statusText.innerText = 'Awaiting drawing...';
         }
     }
 
     function resetBars() {
-        for (let i = 0; i < 10; i++) {
-            document.getElementById(`bar-${i}`).style.width = '0%';
-            document.getElementById(`val-${i}`).innerText = '0.0%';
-            document.getElementById(`row-${i}`).classList.remove('active');
-            document.getElementById(`label-${i}`).classList.remove('active');
-            document.getElementById(`val-${i}`).classList.remove('active');
+        if (!appConfig || !appConfig.classes) return;
+        for (let i = 0; i < appConfig.classes.length; i++) {
+            const bar = document.getElementById(`bar-${i}`);
+            const val = document.getElementById(`val-${i}`);
+            const row = document.getElementById(`row-${i}`);
+            const label = document.getElementById(`label-${i}`);
+            if (bar && val && row && label) {
+                bar.style.width = '0%';
+                val.innerText = '0.0%';
+                row.classList.remove('active');
+                label.classList.remove('active');
+                val.classList.remove('active');
+            }
         }
     }
 
-    // Set black background initially
-    clearCanvas();
-
-    // Coordinate helpers
+    // Coordinate scaling to resolve responsive scaling issues on retina/mobile
     function getCoordinates(e) {
         const rect = canvas.getBoundingClientRect();
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
         const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        
         return {
-            x: clientX - rect.left,
-            y: clientY - rect.top
+            x: (clientX - rect.left) * scaleX,
+            y: (clientY - rect.top) * scaleY
         };
     }
 
-    // Drawing Handlers
+    // Drawing Event Handlers
     function startDrawing(e) {
-        if (!predictor) return; // Prevent drawing if model isn't loaded
+        if (runMode === 'wasm' && !predictor) return; // Wait for WASM
         isDrawing = true;
         hasDrawn = true;
         wrapper.classList.add('drawing');
@@ -396,10 +619,11 @@
         ctx.lineTo(coords.x, coords.y);
         ctx.stroke();
 
-        if (predictor) {
+        // Real-time analysis triggers
+        if (runMode === 'wasm' && predictor) {
             statusDot.className = 'predict-dot';
             statusText.innerText = 'Analyzing (WASM)...';
-            runPrediction();
+            runOfflineInference();
         }
     }
 
@@ -407,25 +631,29 @@
         if (!isDrawing) return;
         isDrawing = false;
         wrapper.classList.remove('drawing');
-        if (hasDrawn && predictor) {
-            runPrediction();
+
+        if (hasDrawn) {
+            if (runMode === 'server') {
+                statusDot.className = 'predict-dot';
+                statusText.innerText = 'Analyzing (Server)...';
+                sendImageToServer();
+            } else if (predictor) {
+                runOfflineInference();
+            }
         }
     }
 
-    // Capture, Scale, and Run Inference
-    function runPrediction() {
-        // Create an offscreen canvas to scale 280x280 down to 28x28
+    // Extract canvas drawing pixels scaled down to 28x28 grayscale
+    function getScaledGrayscalePixels() {
         const offscreen = document.createElement('canvas');
         offscreen.width = 28;
         offscreen.height = 28;
         const oCtx = offscreen.getContext('2d');
-
-        // Draw scaled version
         oCtx.drawImage(canvas, 0, 0, 28, 28);
+        
         const imgData = oCtx.getImageData(0, 0, 28, 28);
         const data = imgData.data;
 
-        // Extract grayscale value for each pixel in [0, 255] range
         const pixels = [];
         for (let i = 0; i < data.length; i += 4) {
             const r = data[i];
@@ -434,76 +662,98 @@
             const grayscale = (r + g + b) / 3;
             pixels.push(grayscale);
         }
+        return pixels;
+    }
+
+    // POST pixels to Backend server
+    function sendImageToServer() {
+        const pixels = getScaledGrayscalePixels();
+
+        fetch('/predict', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ image: pixels })
+        })
+        .then(res => res.json())
+        .then(result => {
+            updateProbabilities(result.probabilities);
+            const label = appConfig.classes[result.prediction] || result.prediction;
+            statusText.innerText = `Prediction: ${label}`;
+            statusDot.className = 'predict-dot';
+        })
+        .catch(err => {
+            console.error('Server inference error:', err);
+            statusText.innerText = 'Prediction failed!';
+            statusDot.className = 'predict-dot idle';
+        });
+    }
+
+    // Run client-side WebAssembly inference directly
+    function runOfflineInference() {
+        if (!predictor) return;
+        const pixels = getScaledGrayscalePixels();
 
         try {
-            // Run prediction directly via WebAssembly!
             const probabilities = predictor.predict(pixels);
             updateProbabilities(probabilities);
 
             // Find class index with max probability
             let maxIndex = 0;
             let maxVal = -1;
-            for (let i = 0; i < 10; i++) {
+            for (let i = 0; i < appConfig.classes.length; i++) {
                 if (probabilities[i] > maxVal) {
                     maxVal = probabilities[i];
                     maxIndex = i;
                 }
             }
 
-            statusText.innerText = `Prediction: ${maxIndex}`;
+            const label = appConfig.classes[maxIndex] || maxIndex;
+            statusText.innerText = `Prediction: ${label}`;
             statusDot.className = 'predict-dot';
         } catch (err) {
-            console.error("WASM prediction error:", err);
+            console.error('WASM prediction error:', err);
             statusText.innerText = 'Prediction failed!';
             statusDot.className = 'predict-dot idle';
         }
     }
 
-    // Update UI Indicators
+    // Update dynamic progress bars & highlights
     function updateProbabilities(probabilities) {
+        if (!appConfig || !appConfig.classes) return;
+        const numClasses = appConfig.classes.length;
+
         let maxIndex = 0;
         let maxVal = -1;
-        for (let i = 0; i < 10; i++) {
+        for (let i = 0; i < numClasses; i++) {
             if (probabilities[i] > maxVal) {
                 maxVal = probabilities[i];
                 maxIndex = i;
             }
         }
 
-        // Update progress bars
-        for (let i = 0; i < 10; i++) {
+        for (let i = 0; i < numClasses; i++) {
             const percentage = (probabilities[i] * 100).toFixed(1);
             const bar = document.getElementById(`bar-${i}`);
             const val = document.getElementById(`val-${i}`);
             const row = document.getElementById(`row-${i}`);
             const label = document.getElementById(`label-${i}`);
 
-            bar.style.width = `${percentage}%`;
-            val.innerText = `${percentage}%`;
+            if (bar && val && row && label) {
+                bar.style.width = `${percentage}%`;
+                val.innerText = `${percentage}%`;
 
-            if (i === maxIndex) {
-                row.classList.add('active');
-                label.classList.add('active');
-                val.classList.add('active');
-            } else {
-                row.classList.remove('active');
-                label.classList.remove('active');
-                val.classList.remove('active');
+                if (i === maxIndex) {
+                    row.classList.add('active');
+                    label.classList.add('active');
+                    val.classList.add('active');
+                } else {
+                    row.classList.remove('active');
+                    label.classList.remove('active');
+                    val.classList.remove('active');
+                }
             }
-        }
-    }
-
-    // Initialize WASM module and predictor
-    async function initWasm() {
-        try {
-            await init();
-            predictor = new MnistPredictor();
-            statusDot.className = 'predict-dot idle';
-            statusText.innerText = 'Awaiting drawing...';
-        } catch (err) {
-            console.error("WASM initialization failed:", err);
-            statusText.innerText = 'WASM load failed!';
-            statusDot.className = 'predict-dot idle';
         }
     }
 
@@ -517,9 +767,6 @@
     window.addEventListener('touchend', stopDrawing);
 
     clearBtn.addEventListener('click', clearCanvas);
-
-    // Run WASM load
-    initWasm();
 </script>
 
 </body>

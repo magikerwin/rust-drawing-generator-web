@@ -199,6 +199,25 @@
             display: flex;
             flex-direction: column;
             gap: 12px;
+            max-height: 480px;
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+
+        /* Custom scrollbar for probabilities list */
+        .probs-list::-webkit-scrollbar {
+            width: 6px;
+        }
+        .probs-list::-webkit-scrollbar-track {
+            background: #151821;
+            border-radius: 3px;
+        }
+        .probs-list::-webkit-scrollbar-thumb {
+            background: #2a2e3d;
+            border-radius: 3px;
+        }
+        .probs-list::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-glow);
         }
 
         .prob-row {
@@ -208,12 +227,16 @@
         }
 
         .digit-label {
-            font-size: 1.1rem;
-            font-weight: 800;
-            width: 16px;
-            text-align: center;
+            font-size: 1rem;
+            font-weight: 600;
+            width: 110px;
+            text-align: left;
+            text-transform: capitalize;
             color: var(--text-sub);
             transition: color 0.2s ease;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .digit-label.active {
@@ -267,8 +290,8 @@
 
 <div class="container">
     <header>
-        <h1>Burn Digit Classifier</h1>
-        <p>Draw a digit in the box below to run real-time inference on the Burn model</p>
+        <h1 id="appTitle">Burn Digit Classifier</h1>
+        <p id="appDesc">Draw a digit in the box below to run real-time inference on the Burn model</p>
     </header>
 
     <div class="app-grid">
@@ -313,20 +336,51 @@
     const statusText = document.getElementById('statusText');
     const probsList = document.getElementById('probsList');
 
-    // Initialize drawings list
-    let rowsHTML = '';
-    for (let i = 0; i < 10; i++) {
-        rowsHTML += `
-            <div class="prob-row" id="row-${i}">
-                <div class="digit-label" id="label-${i}">${i}</div>
-                <div class="progress-bar-bg">
-                    <div class="progress-bar-fill" id="bar-${i}"></div>
+    // Configuration state
+    let appConfig = {
+        dataset: 'mnist',
+        classes: ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+    };
+
+    // Fetch config and initialize UI
+    fetch('/api/config')
+        .then(res => res.json())
+        .then(config => {
+            appConfig = config;
+            initUI();
+        })
+        .catch(err => {
+            console.error('Failed to load backend config, using MNIST defaults:', err);
+            initUI();
+        });
+
+    function initUI() {
+        // Update Title & Header text based on dataset
+        const isQuickdraw = appConfig.dataset === 'quickdraw';
+        document.title = isQuickdraw ? 'Burn Quick, Draw! Doodle Classifier' : 'Burn MNIST Digit Classifier';
+        document.getElementById('appTitle').innerText = isQuickdraw ? 'Burn Quick, Draw! Doodle Classifier' : 'Burn MNIST Digit Classifier';
+        document.getElementById('appDesc').innerText = isQuickdraw 
+            ? 'Draw one of the 25 doodle categories in the box below to run real-time inference on the Burn model' 
+            : 'Draw a digit in the box below to run real-time inference on the Burn model';
+
+        // Dynamically build the probabilities list
+        let rowsHTML = '';
+        appConfig.classes.forEach((className, i) => {
+            rowsHTML += `
+                <div class="prob-row" id="row-${i}">
+                    <div class="digit-label" id="label-${i}">${className}</div>
+                    <div class="progress-bar-bg">
+                        <div class="progress-bar-fill" id="bar-${i}"></div>
+                    </div>
+                    <div class="value-label" id="val-${i}">0.0%</div>
                 </div>
-                <div class="value-label" id="val-${i}">0.0%</div>
-            </div>
-        `;
+            `;
+        });
+        probsList.innerHTML = rowsHTML;
+
+        // Clear canvas to ensure correct initialization state
+        clearCanvas();
     }
-    probsList.innerHTML = rowsHTML;
 
     // Drawing state
     let isDrawing = false;
@@ -351,17 +405,25 @@
     }
 
     function resetBars() {
-        for (let i = 0; i < 10; i++) {
-            document.getElementById(`bar-${i}`).style.width = '0%';
-            document.getElementById(`val-${i}`).innerText = '0.0%';
-            document.getElementById(`row-${i}`).classList.remove('active');
-            document.getElementById(`label-${i}`).classList.remove('active');
-            document.getElementById(`val-${i}`).classList.remove('active');
+        if (!appConfig || !appConfig.classes) return;
+        for (let i = 0; i < appConfig.classes.length; i++) {
+            const bar = document.getElementById(`bar-${i}`);
+            const val = document.getElementById(`val-${i}`);
+            const row = document.getElementById(`row-${i}`);
+            const label = document.getElementById(`label-${i}`);
+            if (bar && val && row && label) {
+                bar.style.width = '0%';
+                val.innerText = '0.0%';
+                row.classList.remove('active');
+                label.classList.remove('active');
+                val.classList.remove('active');
+            }
         }
     }
 
     // Set black background initially
-    clearCanvas();
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // Coordinate helpers
     function getCoordinates(e) {

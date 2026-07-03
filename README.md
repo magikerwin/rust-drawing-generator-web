@@ -1,18 +1,39 @@
-# 🔢 MNIST Digit Classifier — Burn (Rust)
+# 🔢 MNIST & Quick, Draw! Classifier — Burn (Rust)
 
-> An interactive MNIST handwritten digit classifier built with the [Burn](https://burn.dev/) deep learning framework in Rust. Train a CNN model, run inference from the CLI, or draw digits in the browser!
-> 
-> 🚀 **[Try the Live WebAssembly Demo here!](https://magikerwin.github.io/rust-burn-classifier-web/)**
+> An interactive handwritten digit and doodle classifier built with the [Burn](https://burn.dev/) deep learning framework in Rust. Train a CNN model, run inference from the CLI, or draw in the browser!
+>
+> 🚀 **[Try the Live WebAssembly Demo!](https://magikerwin.github.io/rust-burn-classifier-web/)**
 
 ![image](assets/web_demo_mnist.webp)
+
+---
+
+## 📑 Table of Contents
+
+- [Features](#-features)
+- [Model Architecture](#️-model-architecture)
+- [Project Structure](#-project-structure)
+- [Getting Started](#-getting-started)
+  - [Train the Model](#train-the-model)
+  - [Run Tests](#run-tests)
+  - [CLI Inference](#cli-inference)
+  - [Interactive Web Server (Axum)](#interactive-web-server-axum-backend)
+  - [Client-Side WebAssembly App](#client-side-webassembly-app-wasm)
+- [Quick, Draw! Classification Details](#-quick-draw-classification-details)
+- [References](#-references)
+- [License](#-license)
+
+---
 
 ## ✨ Features
 
 - **CNN Architecture** — Conv2d → MaxPool → Conv2d → MaxPool → FC → FC with dropout
-- **Interactive Web Demo** — Draw digits on a canvas and get real-time predictions
-- **WebAssembly Client-Side Deployment** — Run inference directly in the browser via WASM with no backend server required
-- **CLI Inference** — Predict digits with ASCII art visualization
-- **Fully in Rust** — Training, inference, and web frontend in a unified workspace codebase
+- **Interactive Web Demo** — Draw on a canvas and get real-time predictions
+- **WebAssembly Client-Side Inference** — Runs entirely in the browser via WASM, no backend required
+- **CLI Inference** — Predict with ASCII art visualization
+- **Fully in Rust** — Training, inference, and web frontend in a unified workspace
+
+---
 
 ## 🏗️ Model Architecture
 
@@ -25,29 +46,53 @@ Input [1×28×28]
   → Linear(128→10) → Softmax
 ```
 
+---
+
+## 📁 Project Structure
+
+```
+rust-burn-classifier-web/
+├── web/                    # Rust WASM crate (wasm-pack entry point)
+├── src/                    # Training & CLI inference (Burn backend)
+│   ├── main.rs
+│   ├── model.rs            # CNN model definition
+│   ├── training.rs
+│   └── ...
+├── docs/                   # Static web frontend (served by GitHub Pages)
+│   ├── index.html          # Single-page drawing app
+│   └── pkg/                # Compiled WASM output (gitignored, built by CI)
+├── assets/                 # README images and training curves
+├── build.rs                # Copies model weights at build time
+├── publish-weights.ps1     # Helper script to upload weights to GitHub Releases
+└── .github/workflows/
+    └── deploy.yml          # CI: build WASM → assert → deploy → verify
+```
+
+---
+
 ## 🚀 Getting Started
 
 ### Train the Model
 
-By default, training runs on the CPU (using the `NdArray` backend):
+By default, training runs on the CPU (`NdArray` backend):
 
 ```sh
 cargo run --release
 ```
 
-To train using your GPU (using the cross-platform `Wgpu` backend):
+To train on your GPU (`Wgpu` backend):
 
 ```sh
 cargo run --release -- --gpu
 ```
 
-To train doodle classification on the Google **Quick, Draw!** dataset (25 classes, downloads dataset dynamically):
+To train on the Google **Quick, Draw!** dataset (25 classes, downloads dynamically):
 
 ```sh
-# Train on CPU
+# CPU
 cargo run --release -- --dataset quickdraw
 
-# Train on GPU (cross-platform Wgpu backend)
+# GPU
 cargo run --release -- --dataset quickdraw --gpu
 ```
 
@@ -55,7 +100,7 @@ cargo run --release -- --dataset quickdraw --gpu
 
 #### 📊 Results
 
-After 5 epochs of training, the CNN model achieves the following validation metrics:
+After 5 epochs of training:
 
 | Dataset | Validation Accuracy | Validation Loss |
 |---|---|---|
@@ -69,21 +114,25 @@ After 5 epochs of training, the CNN model achieves the following validation metr
 
 </details>
 
+---
+
 ### Run Tests
 
 ```sh
 cargo test
 ```
 
-### Run CLI Inference
+---
 
-Once trained, predict digits from the MNIST test set:
+### CLI Inference
+
+Once trained, predict from the MNIST test set:
 
 ```sh
 cargo run --release -- --predict
 ```
 
-To predict doodles from the Quick, Draw! test dataset:
+Predict from the Quick, Draw! test set:
 
 ```sh
 cargo run --release -- --predict --dataset quickdraw
@@ -152,30 +201,35 @@ Top Predictions:
 
 </details>
 
-### Run Interactive Web Server (Axum backend)
+---
 
-Start the browser-based drawing pad backed by the Rust Axum server. The web server dynamically configures its UI categories and canvas configuration depending on which dataset you select:
+### Interactive Web Server (Axum backend)
 
-- **Run with MNIST Digits (default)**:
+Start the browser-based drawing pad backed by the Rust Axum server:
+
+- **MNIST Digits (default)**:
   ```sh
   cargo run --release -- --serve
   ```
-  Then open **[http://127.0.0.1:3000](http://127.0.0.1:3000)** to draw digits (0-9) and run predictions.
+  Open **[http://127.0.0.1:3000](http://127.0.0.1:3000)** to draw digits (0–9).
 
-- **Run with Quick, Draw! Doodles**:
+- **Quick, Draw! Doodles**:
   ```sh
   cargo run --release -- --serve --dataset quickdraw
   ```
-  Then open **[http://127.0.0.1:3000](http://127.0.0.1:3000)** to draw and predict doodles (25 classes).
+  Open **[http://127.0.0.1:3000](http://127.0.0.1:3000)** to draw and predict doodles (25 classes).
 
-### Run Client-Side WebAssembly App (WASM)
+---
 
-This project compiles the trained models into WebAssembly to run inference fully client-side. To avoid Git binary bloat, the model weights are **completely decoupled** from Git history and LFS:
-- **Locally**: `build.rs` automatically copies fresh weights from `target/` on compilation.
-- **In CI (GitHub Actions)**: `build.rs` automatically downloads stable weights from GitHub Releases using `curl` at build time.
+### Client-Side WebAssembly App (WASM)
 
-#### 1. Compile the WASM bundle locally
-Make sure you have trained the models locally first. Then run:
+The trained models compile to WebAssembly for fully client-side inference. Model weights are **decoupled from Git history** to avoid binary bloat:
+- **Locally**: `build.rs` copies fresh weights from `target/` at compile time.
+- **In CI**: `build.rs` downloads stable weights from GitHub Releases via `curl`.
+
+#### 1. Build the WASM bundle locally
+
+Make sure you have trained the models first, then:
 
 1. **Install wasm-pack**:
    ```sh
@@ -187,65 +241,77 @@ Make sure you have trained the models locally first. Then run:
    wasm-pack build web --target web --out-dir ../docs/pkg
    ```
 
-3. **Serve the frontend locally**:
-   Install and run `basic-http-server`:
+3. **Serve locally**:
    ```sh
    cargo install basic-http-server
    basic-http-server docs
    ```
-   Navigate to **[http://localhost:4000](http://localhost:4000)** to run serverless inference.
+   Navigate to **[http://localhost:4000](http://localhost:4000)**.
 
 #### 2. Automatic Deployments & Release Management
-The project includes a GitHub Action workflow that automatically compiles and deploys your static page to the `gh-pages` branch whenever you push changes to `master`.
 
-To update the online weights used by the CI runner:
-1. Ensure the GitHub CLI (`gh`) is installed and authenticated. If not:
-   - **Install** (Windows): `winget install --id GitHub.cli` (restart VS Code after installing)
-   - **Authenticate**: `gh auth login` (choose GitHub.com -> HTTPS -> Authenticate via browser)
-2. Run the helper script to upload your local weights to a GitHub release (defaults to `v1.0.0`):
+The CI workflow (`.github/workflows/deploy.yml`) automatically builds and deploys to GitHub Pages on every push to `master`. It also verifies the live WASM URL after deploying.
+
+To update the model weights used by the CI runner:
+
+1. Ensure the GitHub CLI (`gh`) is installed and authenticated:
+   - **Install** (Windows): `winget install --id GitHub.cli` (restart VS Code after)
+   - **Authenticate**: `gh auth login` → GitHub.com → HTTPS → browser
+
+2. Upload your local weights to a GitHub Release:
    ```powershell
    # Default v1.0.0
    powershell -ExecutionPolicy Bypass -File ./publish-weights.ps1
 
-   # Or specify a custom version tag
+   # Custom version tag
    powershell -ExecutionPolicy Bypass -File ./publish-weights.ps1 -Version v2.0.0
    ```
+
 3. Trigger the deployment:
-   - **If you made code changes**: Push your commits to master:
-     ```sh
-     git push origin master
-     ```
-   - **If you only updated model weights**: Go to the **Actions** tab on your GitHub repository page, select the **Deploy WebAssembly to GitHub Pages** workflow, and click the **Run workflow** dropdown button.
-4. Verify your repository settings under **Settings → Pages → Build and deployment** is configured as:
+   - **Code changes**: `git push origin master`
+   - **Weights only**: Go to **Actions → Deploy WebAssembly to GitHub Pages → Run workflow**
+
+4. Verify your repository settings under **Settings → Pages → Build and deployment**:
    - **Source**: `Deploy from a branch`
    - **Branch**: `gh-pages`, folder `/ (root)`
 
    > ⚠️ Do **not** set Source to "GitHub Actions" — the workflow pushes files directly to the `gh-pages` branch via git.
 
+---
+
 ## 🎨 Quick, Draw! Classification Details
 
-This project supports doodle classification using the public Google **[Quick, Draw! Dataset](https://github.com/googlecreativelab/quickdraw-dataset)**. 
+This project supports doodle classification using the public Google **[Quick, Draw! Dataset](https://github.com/googlecreativelab/quickdraw-dataset)**.
 
 ### Selected Categories (25 classes)
-Rather than training on all 345 categories (which totals 39 GB of raw bitmap data), we train on a curated subset of **25 diverse and easily sketchable classes**:
-* **Nature/Weather**: `sun`, `moon`, `star`, `tree`, `flower`
-* **Animals**: `cat`, `dog`, `fish`, `butterfly`
-* **Common Objects**: `cup`, `key`, `umbrella`, `hat`, `clock`, `envelope`, `toothbrush`
-* **Structures/Vehicles**: `house`, `car`
-* **Shapes/Drawings**: `circle`, `triangle`, `square`, `smiley face`
-* **Clothing**: `pants`, `t-shirt`
-* **Food**: `apple`
+
+Rather than training on all 345 categories (39 GB of raw data), we train on a curated subset of **25 diverse and sketchable classes**:
+
+| Group | Classes |
+|---|---|
+| Nature / Weather | `sun`, `moon`, `star`, `tree`, `flower` |
+| Animals | `cat`, `dog`, `fish`, `butterfly` |
+| Common Objects | `cup`, `key`, `umbrella`, `hat`, `clock`, `envelope`, `toothbrush` |
+| Structures / Vehicles | `house`, `car` |
+| Shapes | `circle`, `triangle`, `square`, `smiley face` |
+| Clothing | `pants`, `t-shirt` |
+| Food | `apple` |
 
 ### Key Design Considerations
-1. **Compute & Storage Constraints**: Restricting the dataset to 25 categories reduces the data footprint to ~250 MB, allowing the dataset to fit entirely in memory and train in minutes on a consumer GPU.
-2. **Model Capacity**: A simple CNN architecture struggles to differentiate 345 classes, but easily achieves high accuracy on 25 distinct shapes.
-3. **Canvas Drawability**: These categories are simple and iconic enough for humans to draw clearly on a small `28x28` pixel canvas.
-4. **License & Privacy**: The dataset is safe and free to use under the **Creative Commons Attribution 4.0 International (CC BY 4.0)** license, and contains no personally identifiable information (PII).
+
+1. **Compute & Storage**: 25 classes → ~250 MB footprint, fits in memory, trains in minutes on a consumer GPU.
+2. **Model Capacity**: A simple CNN easily achieves high accuracy on 25 distinct shapes vs. struggling with all 345.
+3. **Canvas Drawability**: These shapes are simple and iconic enough to draw clearly on a `28×28` canvas.
+4. **License & Privacy**: CC BY 4.0, no personally identifiable information (PII).
+
+---
 
 ## 📚 References
 
 - [Burn — Deep Learning Framework for Rust](https://burn.dev/)
 - [tracel-ai/burn MNIST example](https://github.com/tracel-ai/burn/blob/main/examples/mnist/examples/mnist.rs)
+
+---
 
 ## 📄 License
 

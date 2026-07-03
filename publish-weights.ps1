@@ -1,3 +1,7 @@
+param (
+    [string]$Version = "v1.0.0"
+)
+
 # Verify GitHub CLI (gh) is installed
 if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
     Write-Error "GitHub CLI (gh) is not installed. Please install it and log in using 'gh auth login' before running this script."
@@ -17,19 +21,19 @@ if (-not (Test-Path $qdWeights)) {
     exit 1
 }
 
-Write-Host "Ensuring GitHub Release 'v1.0.0' exists..." -ForegroundColor Cyan
+Write-Host "Ensuring GitHub Release '$Version' exists..." -ForegroundColor Cyan
 # Try creating the release. If it already exists, gh CLI will report a warning but continue safely
-gh release create v1.0.0 --title "v1.0.0" --notes "Pre-trained model weights for offline WebAssembly inference" 2>$null
+gh release create $Version --title "$Version" --notes "Pre-trained model weights for offline WebAssembly inference ($Version)" 2>$null
 
 Write-Host "Preparing model binaries for upload..." -ForegroundColor Cyan
 Copy-Item $mnistWeights "mnist-model.bin"
 Copy-Item $qdWeights "quickdraw-model.bin"
 
-Write-Host "Uploading model weights to GitHub Release v1.0.0 (overwriting previous assets)..." -ForegroundColor Cyan
-gh release upload v1.0.0 "mnist-model.bin" "quickdraw-model.bin" --clobber
+Write-Host "Uploading model weights to GitHub Release $Version (overwriting previous assets)..." -ForegroundColor Cyan
+gh release upload $Version "mnist-model.bin" "quickdraw-model.bin" --clobber
 
 Write-Host "Cleaning up temporary files..." -ForegroundColor Cyan
 Remove-Item "mnist-model.bin" -Force
 Remove-Item "quickdraw-model.bin" -Force
 
-Write-Host "Success! Model weights uploaded successfully to GitHub Releases." -ForegroundColor Green
+Write-Host "Success! Model weights uploaded successfully to GitHub Release $Version." -ForegroundColor Green

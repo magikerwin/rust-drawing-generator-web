@@ -200,9 +200,13 @@ The project includes a GitHub Action workflow that automatically compiles and de
 
 To update the online weights used by the CI runner:
 1. Ensure the GitHub CLI (`gh`) is installed and authenticated.
-2. Run the helper script to create/update release `v1.0.0` and upload your local weights:
+2. Run the helper script to upload your local weights to a GitHub release (defaults to `v1.0.0`):
    ```powershell
+   # Default v1.0.0
    ./publish-weights.ps1
+
+   # Or specify a custom version tag
+   ./publish-weights.ps1 -Version v2.0.0
    ```
 3. Push your code changes to GitHub:
    ```sh

@@ -31,6 +31,9 @@ jobs:
         run: |
           wasm-pack build web --target web --out-dir ../docs/pkg
 
+      # Remove .gitignore to prevent deployment filter exclusions.
+      # Workaround for peaceiris/actions-gh-pages ignoring folders (like /docs/pkg/) that are in the master .gitignore.
+      # Reference: https://github.com/peaceiris/actions-gh-pages/issues/445
       - name: Remove .gitignore to prevent deployment filter exclusions
         run: rm -f .gitignore
 

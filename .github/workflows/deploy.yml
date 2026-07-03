@@ -37,6 +37,9 @@ jobs:
       # Reference: https://github.com/peaceiris/actions-gh-pages/issues/445
       - name: Deploy to GitHub Pages
         run: |
+          # Remove any .gitignore files inside docs/ so they don't block git add
+          find docs -name ".gitignore" -delete
+
           # Save the built docs/ into a temp dir before switching branches
           cp -r docs /tmp/gh-pages-content
 
@@ -50,6 +53,9 @@ jobs:
 
           # Copy docs/ *contents* (not the folder itself) to the branch root
           cp -r /tmp/gh-pages-content/. .
+
+          echo "=== Files to be committed ==="
+          find . -not -path './.git/*' | sort
 
           git add -f .
           git commit -m "Deploy to gh-pages [skip ci]" || echo "Nothing to commit"

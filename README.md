@@ -216,7 +216,11 @@ To update the online weights used by the CI runner:
      git push origin master
      ```
    - **If you only updated model weights**: Go to the **Actions** tab on your GitHub repository page, select the **Deploy WebAssembly to GitHub Pages** workflow, and click the **Run workflow** dropdown button.
-4. Verify your repository settings under **Settings -> Pages** is configured to serve from the **`gh-pages`** branch (root).
+4. Verify your repository settings under **Settings → Pages → Build and deployment** is configured as:
+   - **Source**: `Deploy from a branch`
+   - **Branch**: `gh-pages`, folder `/ (root)`
+
+   > ⚠️ Do **not** set Source to "GitHub Actions" — the workflow pushes files directly to the `gh-pages` branch via git.
 
 ## 🎨 Quick, Draw! Classification Details
 

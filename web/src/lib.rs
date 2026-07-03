@@ -28,7 +28,7 @@ impl MnistPredictor {
         let record = recorder.load(bytes.to_vec(), &device)
             .expect("Failed to load embedded model weights");
             
-        let model = Model::<NdArray>::new(&device).load_record(record);
+        let model = Model::<NdArray>::new(&device, 10).load_record(record);
         
         Self { model, device }
     }

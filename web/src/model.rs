@@ -12,7 +12,6 @@ use burn::{
 
 const IMAGE_WIDTH: usize = 28;
 const IMAGE_HEIGHT: usize = 28;
-const NUM_CLASSES: usize = 10;
 
 #[derive(Module, Debug)]
 pub struct Model<B: Backend> {
@@ -25,7 +24,7 @@ pub struct Model<B: Backend> {
 }
 
 impl<B: Backend> Model<B> {
-    pub fn new(device: &B::Device) -> Self {
+    pub fn new(device: &B::Device, num_classes: usize) -> Self {
         let conv1 = Conv2dConfig::new([1, 8], [3, 3])
             .with_padding(PaddingConfig2d::Same)
             .init(device);
@@ -37,7 +36,7 @@ impl<B: Backend> Model<B> {
             .init();
         // After two 2x2 max-pools: 28 -> 14 -> 7
         let fc1 = LinearConfig::new(16 * (IMAGE_WIDTH / 4) * (IMAGE_HEIGHT / 4), 128).init(device);
-        let fc2 = LinearConfig::new(128, NUM_CLASSES).init(device);
+        let fc2 = LinearConfig::new(128, num_classes).init(device);
         let dropout = DropoutConfig::new(0.5).init();
 
         Self {

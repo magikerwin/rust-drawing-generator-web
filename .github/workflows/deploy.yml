@@ -31,6 +31,14 @@ jobs:
         run: |
           wasm-pack build web --target web --out-dir ../docs/pkg
 
+      - name: Assert required files exist
+        run: |
+          echo "Checking build output..."
+          test -f docs/index.html             || (echo "MISSING: docs/index.html" && exit 1)
+          test -f docs/pkg/mnist_web.js       || (echo "MISSING: docs/pkg/mnist_web.js" && exit 1)
+          test -f docs/pkg/mnist_web_bg.wasm  || (echo "MISSING: docs/pkg/mnist_web_bg.wasm" && exit 1)
+          echo "All required files present. Proceeding with deployment."
+
       # Deploy docs/ directly to gh-pages branch via git instead of using peaceiris/actions-gh-pages.
       # Two reasons:
       #   1. peaceiris/actions-gh-pages internally respects .gitignore, filtering out docs/pkg/
@@ -40,6 +48,7 @@ jobs:
       # Reference: https://github.com/peaceiris/actions-gh-pages/issues/445
       - name: Deploy to GitHub Pages
         run: |
+          set -euo pipefail
           # Remove any .gitignore files inside docs/ so they don't block git add
           find docs -name ".gitignore" -delete
 
@@ -63,3 +72,15 @@ jobs:
           git add -f .
           git commit -m "Deploy to gh-pages [skip ci]" || echo "Nothing to commit"
           git push origin gh-pages
+
+      - name: Verify live deployment
+        run: |
+          echo "Waiting 60s for GitHub Pages CDN to propagate..."
+          sleep 60
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            https://magikerwin.github.io/rust-burn-classifier-web/pkg/mnist_web_bg.wasm)
+          if [ "$STATUS" != "200" ]; then
+            echo "ERROR: WASM file returned HTTP $STATUS — deployment may be broken!"
+            exit 1
+          fi
+          echo "OK: WASM file is live (HTTP $STATUS)"

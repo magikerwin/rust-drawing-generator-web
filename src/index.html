@@ -430,9 +430,14 @@
         const rect = canvas.getBoundingClientRect();
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
         const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        
+        // Scale coordinates to match actual canvas resolution (280x280)
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        
         return {
-            x: clientX - rect.left,
-            y: clientY - rect.top
+            x: (clientX - rect.left) * scaleX,
+            y: (clientY - rect.top) * scaleY
         };
     }
 
@@ -498,7 +503,8 @@
         .then(res => res.json())
         .then(result => {
             updateProbabilities(result.probabilities);
-            statusText.innerText = `Prediction: ${result.prediction}`;
+            const predictedLabel = appConfig.classes[result.prediction] || result.prediction;
+            statusText.innerText = `Prediction: ${predictedLabel}`;
         })
         .catch(err => {
             console.error(err);
@@ -509,10 +515,13 @@
 
     // Update UI Indicators
     function updateProbabilities(probabilities) {
+        if (!appConfig || !appConfig.classes) return;
+        const numClasses = appConfig.classes.length;
+
         // Find index with highest probability
         let maxIndex = 0;
         let maxVal = -1;
-        for (let i = 0; i < 10; i++) {
+        for (let i = 0; i < numClasses; i++) {
             if (probabilities[i] > maxVal) {
                 maxVal = probabilities[i];
                 maxIndex = i;
@@ -520,24 +529,26 @@
         }
 
         // Update progress bars
-        for (let i = 0; i < 10; i++) {
+        for (let i = 0; i < numClasses; i++) {
             const percentage = (probabilities[i] * 100).toFixed(1);
             const bar = document.getElementById(`bar-${i}`);
             const val = document.getElementById(`val-${i}`);
             const row = document.getElementById(`row-${i}`);
             const label = document.getElementById(`label-${i}`);
 
-            bar.style.width = `${percentage}%`;
-            val.innerText = `${percentage}%`;
+            if (bar && val && row && label) {
+                bar.style.width = `${percentage}%`;
+                val.innerText = `${percentage}%`;
 
-            if (i === maxIndex) {
-                row.classList.add('active');
-                label.classList.add('active');
-                val.classList.add('active');
-            } else {
-                row.classList.remove('active');
-                label.classList.remove('active');
-                val.classList.remove('active');
+                if (i === maxIndex) {
+                    row.classList.add('active');
+                    label.classList.add('active');
+                    val.classList.add('active');
+                } else {
+                    row.classList.remove('active');
+                    label.classList.remove('active');
+                    val.classList.remove('active');
+                }
             }
         }
     }

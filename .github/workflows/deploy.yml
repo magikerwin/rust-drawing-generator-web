@@ -31,9 +31,12 @@ jobs:
         run: |
           wasm-pack build web --target web --out-dir ../docs/pkg
 
-      # Deploy docs/ directly to gh-pages branch via git.
-      # We avoid peaceiris/actions-gh-pages because it internally respects .gitignore
-      # and filters out docs/pkg/ which is gitignored in the master branch.
+      # Deploy docs/ directly to gh-pages branch via git instead of using peaceiris/actions-gh-pages.
+      # Two reasons:
+      #   1. peaceiris/actions-gh-pages internally respects .gitignore, filtering out docs/pkg/
+      #      (which is gitignored in master to avoid committing build artifacts).
+      #   2. wasm-pack auto-generates a .gitignore inside docs/pkg/, which blocks `git add`
+      #      even with -f, so we explicitly delete it before staging.
       # Reference: https://github.com/peaceiris/actions-gh-pages/issues/445
       - name: Deploy to GitHub Pages
         run: |

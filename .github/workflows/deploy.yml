@@ -31,6 +31,9 @@ jobs:
         run: |
           wasm-pack build web --target web --out-dir ../docs/pkg
 
+      - name: Remove .gitignore to prevent deployment filter exclusions
+        run: rm -f .gitignore
+
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:

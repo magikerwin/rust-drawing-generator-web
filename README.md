@@ -205,10 +205,10 @@ To update the online weights used by the CI runner:
 2. Run the helper script to upload your local weights to a GitHub release (defaults to `v1.0.0`):
    ```powershell
    # Default v1.0.0
-   ./publish-weights.ps1
+   powershell -ExecutionPolicy Bypass -File ./publish-weights.ps1
 
    # Or specify a custom version tag
-   ./publish-weights.ps1 -Version v2.0.0
+   powershell -ExecutionPolicy Bypass -File ./publish-weights.ps1 -Version v2.0.0
    ```
 3. Trigger the deployment:
    - **If you made code changes**: Push your commits to master:

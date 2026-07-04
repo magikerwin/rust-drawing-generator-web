@@ -64,13 +64,26 @@ async fn predict_handler(
     let len = payload.image.len().min(784);
     raw_image[..len].copy_from_slice(&payload.image[..len]);
 
-    // Self-healing: if the frontend sends [0, 1] normalized pixels, scale them to [0, 255]
+    // Normalize/scale pixels based on dataset expectations
     let max_pixel = raw_image.iter().fold(0.0f32, |m, &x| m.max(x));
-    if max_pixel <= 1.0 && max_pixel > 0.0 {
-        for val in raw_image.iter_mut() {
-            *val *= 255.0;
+    let is_quickdraw = state.config.dataset == "quickdraw";
+
+    if is_quickdraw {
+        // QuickDraw expects [0, 1]
+        if max_pixel > 1.0 {
+            for val in raw_image.iter_mut() {
+                *val /= 255.0;
+            }
+        }
+    } else {
+        // MNIST expects [0, 255]
+        if max_pixel <= 1.0 && max_pixel > 0.0 {
+            for val in raw_image.iter_mut() {
+                *val *= 255.0;
+            }
         }
     }
+
 
     // 2. Perform prediction and extract softmax probabilities
     let model = state.model.lock().unwrap();

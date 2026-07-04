@@ -373,7 +373,12 @@
                 <input type="checkbox" id="debugBoxToggle" style="cursor: pointer; width: 14px; height: 14px; margin: 0;">
                 <label for="debugBoxToggle" style="cursor: pointer; user-select: none; font-weight: 500;">Show Bounding Box (Debug)</label>
             </div>
+            <div id="debugErrorContainer" style="display: none; margin-top: 14px; padding: 12px; border-radius: 8px; background-color: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); font-family: monospace; font-size: 0.8rem; color: #f87171; text-align: left; overflow-x: auto; max-width: 280px; word-wrap: break-word; line-height: 1.4;">
+                <strong>Debug Load Error:</strong>
+                <div id="debugErrorText" style="margin-top: 4px;"></div>
+            </div>
         </div>
+
 
 
         <!-- Real-Time Metrics & Outcomes -->
@@ -430,7 +435,11 @@
     let predictor = null;
 
     const debugBoxToggle = document.getElementById('debugBoxToggle');
+    const debugErrorContainer = document.getElementById('debugErrorContainer');
+    const debugErrorText = document.getElementById('debugErrorText');
     let debugBoxBackup = null;
+    let wasmLoadError = null;
+
 
     // Drawing state
     let isDrawing = false;
@@ -552,13 +561,28 @@
                 predictor = new wasmModule.MnistPredictor();
             }
 
+            wasmLoadError = null;
+            updateDebugErrorVisibility();
             statusDot.className = 'predict-dot idle';
             statusText.innerText = 'Awaiting drawing...';
         } catch (err) {
             console.error('Failed to load WASM predictor:', err);
+            wasmLoadError = err.message || err.toString();
+            updateDebugErrorVisibility();
             statusText.innerText = 'WASM load failed!';
             statusDot.className = 'predict-dot idle';
         }
+    }
+
+    function updateDebugErrorVisibility() {
+        if (debugBoxToggle && debugBoxToggle.checked && wasmLoadError) {
+            debugErrorText.innerText = wasmLoadError;
+            debugErrorContainer.style.display = 'block';
+        } else {
+            debugErrorContainer.style.display = 'none';
+        }
+    }
+
     }
 
     // Clear Drawing Pad & bars
@@ -900,7 +924,9 @@
     window.addEventListener('touchend', stopDrawing);
 
     clearBtn.addEventListener('click', clearCanvas);
+    debugBoxToggle.addEventListener('change', updateDebugErrorVisibility);
 </script>
 
 </body>
 </html>
+

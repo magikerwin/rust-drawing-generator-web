@@ -24,10 +24,12 @@ use burn::{
 pub struct TrainingConfig {
     #[config(default = 5)]
     pub num_epochs: usize,      // Number of epochs to train for
-    #[config(default = 64)]
+    #[config(default = 128)]
     pub batch_size: usize,      // Number of samples in each batch
-    #[config(default = 4)]
+    #[config(default = 1)]
     pub num_workers: usize,     // Number of parallel threads used for data loading
+
+
     #[config(default = 42)]
     pub seed: u64,              // Seed for random number generators (reproducibility)
     pub optimizer: AdamConfig,  // Optimizer configuration (e.g. learning rate, betas)
@@ -45,9 +47,29 @@ pub fn train<B: AutodiffBackend, D1, D2>(
     D1: Dataset<burn::data::dataset::vision::MnistItem> + 'static,
     D2: Dataset<burn::data::dataset::vision::MnistItem> + 'static,
 {
-    // Ensure the output directory exists and save the execution config as JSON
+    let config_path = format!("{artifact_dir}/config.json");
+    if std::path::Path::new(&config_path).exists() {
+        if let Ok(existing_content) = std::fs::read_to_string(&config_path) {
+            if let Ok(new_content) = serde_json::to_string(&config) {
+                // If configuration has changed, the checkpoints are likely incompatible
+                if existing_content != new_content {
+                    println!("\n==========================================================================");
+                    println!("WARNING: Training configuration or model architecture mismatch detected!");
+                    println!("Existing checkpoints in '{}' may be incompatible.", artifact_dir);
+                    println!("Please delete this directory to start a clean training session:");
+                    println!("  Remove-Item -Recurse -Force {} (Windows PowerShell)", artifact_dir);
+                    println!("  rm -rf {} (Linux / macOS)", artifact_dir);
+                    println!("==========================================================================\n");
+                    panic!("Configuration mismatch. Clear the artifact directory to continue.");
+                }
+            }
+        }
+    }
+
     std::fs::create_dir_all(artifact_dir).ok();
-    config.save(format!("{artifact_dir}/config.json")).expect("Save config failed");
+    config.save(&config_path).expect("Save config failed");
+
+
 
     // Set the backend random seed for reproducible initialization and shuffling
     B::seed(config.seed);

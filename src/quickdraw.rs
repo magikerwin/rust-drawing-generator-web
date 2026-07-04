@@ -9,9 +9,11 @@ pub const QUICKDRAW_CLASSES: [&str; 25] = [
     "clock", "envelope", "toothbrush", "house", "car", "smiley face", "pants", "t-shirt", "apple"
 ];
 
-pub const TRAIN_SAMPLES_PER_CLASS: usize = 2000;
-pub const VAL_SAMPLES_PER_CLASS: usize = 500;
+pub const TRAIN_SAMPLES_PER_CLASS: usize = 5000;
+pub const VAL_SAMPLES_PER_CLASS: usize = 1000;
 pub const TOTAL_SAMPLES_PER_CLASS: usize = TRAIN_SAMPLES_PER_CLASS + VAL_SAMPLES_PER_CLASS;
+
+
 
 /// Dataset struct for Quick, Draw! items.
 /// Reuses MnistItem to allow full compatibility with MnistBatcher.
@@ -85,8 +87,8 @@ impl Dataset<MnistItem> for QuickDrawDataset {
 
 /// Helper to download the first N samples from Google Cloud Storage using HTTP Range.
 fn download_class_subset(class_name: &str, num_samples: usize, dest_path: &Path) -> Result<(), String> {
-    // 2500 samples * 784 bytes ≈ 1.96 MB. Requesting 2.1 MB to safely cover any header size.
-    let bytes_to_request = (num_samples * 784) + 128 * 1024; 
+    // 6000 samples * 784 bytes ≈ 4.7 MB. Requesting 5 MB to safely cover any header size.
+    let bytes_to_request = (num_samples * 784) + 256 * 1024;
     let encoded_class = class_name.replace(" ", "%20");
     let url = format!(
         "https://storage.googleapis.com/quickdraw_dataset/full/numpy_bitmap/{}.npy",

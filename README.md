@@ -39,11 +39,11 @@
 
 ```
 Input [1×28×28]
-  → Conv2d(1→8, 3×3, same) → ReLU → MaxPool(2×2)    → [8×14×14]
-  → Conv2d(8→16, 3×3, same) → ReLU → MaxPool(2×2)   → [16×7×7]
-  → Flatten                                           → [784]
-  → Linear(784→128) → ReLU → Dropout(0.5)
-  → Linear(128→10) → Softmax
+  → Conv2d(1→16, 3×3, same) → LayerNorm → ReLU → MaxPool(2×2)  → [16×14×14]
+  → Conv2d(16→32, 3×3, same) → LayerNorm → ReLU → MaxPool(2×2) → [32×7×7]
+  → Flatten                                                     → [1568]
+  → Linear(1568→256) → ReLU → Dropout(0.35)
+  → Linear(256→num_classes) → Softmax
 ```
 
 ---
@@ -100,7 +100,14 @@ cargo run --release -- --dataset quickdraw
 cargo run --release -- --dataset quickdraw --gpu
 ```
 
+> **Dataset Cache:** Quick, Draw! `.npy` files are downloaded once and cached at `target/quickdraw_dataset/`. If you change `TRAIN_SAMPLES_PER_CLASS` or `VAL_SAMPLES_PER_CLASS` in `src/quickdraw.rs`, delete the cache first so it re-downloads with the new sample count:
+> ```sh
+> rm -rf target/quickdraw_dataset   # Linux / macOS
+> Remove-Item -Recurse -Force target\quickdraw_dataset  # Windows PowerShell
+> ```
+
 > **Note:** Always use `--release` for optimized tensor math performance.
+
 
 #### 📊 Results
 
@@ -108,8 +115,9 @@ After 5 epochs of training:
 
 | Dataset | Validation Accuracy | Validation Loss |
 |---|---|---|
-| **MNIST** (10 classes) | `~97%+` | `~0.10` |
-| **Quick, Draw!** (25 classes) | `~80% - 85%` | `~0.50 - 0.70` |
+| **MNIST** (10 classes) | `~98%+` | `~0.05` |
+| **Quick, Draw!** (25 classes) | `~95%+` | `~0.15` |
+
 
 <details>
 <summary>📈 View MNIST Training Progress Curve</summary>

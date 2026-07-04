@@ -74,10 +74,14 @@ pub fn train<B: AutodiffBackend, D1, D2>(
     // Set the backend random seed for reproducible initialization and shuffling
     B::seed(config.seed);
 
-    let is_quickdraw = num_classes > 10;
+    // MNIST digits cannot be horizontally flipped (e.g. flipping '3' changes its semantic meaning),
+
+    // but Quick Draw doodles are direction-agnostic (a flipped cat is still a cat).
+    let allow_horizontal_flip = num_classes > 10;
 
     // Initialize the batcher for training data (needs autodiff backend B to track gradients)
-    let batcher_train = MnistBatcher::<B>::new(device.clone(), true, is_quickdraw);
+    let batcher_train = MnistBatcher::<B>::new(device.clone(), true, allow_horizontal_flip);
+
     
     // Initialize the batcher for validation data (uses B::InnerBackend which skips tracking gradients)
     let batcher_valid = MnistBatcher::<B::InnerBackend>::new(device.clone(), false, false);

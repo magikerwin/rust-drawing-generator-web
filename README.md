@@ -32,6 +32,7 @@
 - **WebAssembly Client-Side Inference** — Runs entirely in the browser via WASM, no backend required
 - **CLI Inference** — Predict with ASCII art visualization
 - **Fully in Rust** — Training, inference, and web frontend in a unified workspace
+- **Data Augmentations** — Random spatial translation, scale/zoom shifts, and horizontal flips (QuickDraw) applied dynamically during batch collation for robust canvas prediction
 
 ---
 
@@ -52,14 +53,16 @@ Input [1×28×28]
 
 ```
 rust-burn-classifier-web/
+├── model_shared/           # Shared library workspace crate
+│   └── src/lib.rs          # CNN model definition & LayerNorm layers
 ├── web/                    # Rust WASM crate (wasm-pack entry point)
 ├── src/                    # Training & CLI inference (Burn backend)
 │   ├── main.rs
-│   ├── model.rs            # CNN model definition
+│   ├── model.rs            # Re-exports shared model definition
 │   ├── training.rs
 │   └── ...
 ├── docs/                   # Static web frontend (served by GitHub Pages)
-│   ├── index.html          # Single-page drawing app
+│   ├── index.html          # Single-page drawing app with Developer Console
 │   └── pkg/                # Compiled WASM output (gitignored, built by CI)
 ├── assets/                 # README images and training curves
 ├── build.rs                # Copies model weights at build time
@@ -67,6 +70,7 @@ rust-burn-classifier-web/
 └── .github/workflows/
     └── deploy.yml          # CI: build WASM → assert → deploy → verify
 ```
+
 
 > **Git Branches:**
 > - `master` — The only branch you need. All development happens here. Compiled binaries are gitignored and built fresh by CI on every deploy.

@@ -703,9 +703,10 @@
                     ctx.strokeStyle = '#ef4444'; // Tailwind red-500
                     ctx.lineWidth = 2;
                     ctx.setLineDash([6, 4]); // Dashed stroke
-                    ctx.strokeRect(cropX, cropY, finalCropSize, finalCropSize);
+                    ctx.strokeRect(cropX + 1, cropY + 1, finalCropSize - 2, finalCropSize - 2);
                     ctx.restore();
                 }
+
             }
         }
     }

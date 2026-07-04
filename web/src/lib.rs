@@ -6,7 +6,8 @@ use burn::{
     record::{BinBytesRecorder, FullPrecisionSettings, Recorder},
     tensor::activation::softmax,
 };
-use rust::model::Model;
+use model_shared::Model;
+
 
 
 #[wasm_bindgen]

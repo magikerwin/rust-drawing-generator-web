@@ -3149,11 +3149,18 @@ dependencies = [
  "burn",
  "console_error_panic_hook",
  "js-sys",
- "rust",
+ "model_shared",
  "serde",
  "serde_json",
  "wasm-bindgen",
  "wasm-bindgen-test",
+]
+
+[[package]]
+name = "model_shared"
+version = "0.1.0"
+dependencies = [
+ "burn",
 ]
 
 [[package]]
@@ -4231,6 +4238,7 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "burn",
+ "model_shared",
  "reqwest",
  "serde",
  "serde_json",

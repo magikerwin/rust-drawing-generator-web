@@ -552,10 +552,11 @@
 
         try {
             if (!wasmModule) {
-                // Dynamically import WASM module (saves 1.8 MB bandwidth in server mode)
-                wasmModule = await import('./pkg/mnist_web.js');
+                // Dynamically import WASM module with a cache-busting query parameter to force browser updates
+                wasmModule = await import(`./pkg/mnist_web.js?v=${Date.now()}`);
                 await wasmModule.default();
             }
+
 
             if (appConfig.dataset === 'quickdraw') {
                 predictor = new wasmModule.QuickdrawPredictor();

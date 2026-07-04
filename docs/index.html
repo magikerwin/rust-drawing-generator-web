@@ -1002,8 +1002,14 @@
     window.addEventListener('touchend', stopDrawing);
 
     clearBtn.addEventListener('click', clearCanvas);
-    debugBoxToggle.addEventListener('change', updateDebugErrorVisibility);
+    showCropBoxCheck.addEventListener('change', () => {
+        if (!showCropBoxCheck.checked && debugBoxBackup) {
+            ctx.putImageData(debugBoxBackup, 0, 0);
+            debugBoxBackup = null;
+        }
+    });
 </script>
+
 
 </body>
 </html>

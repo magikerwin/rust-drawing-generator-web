@@ -3149,6 +3149,7 @@ dependencies = [
  "burn",
  "console_error_panic_hook",
  "js-sys",
+ "rust",
  "serde",
  "serde_json",
  "wasm-bindgen",

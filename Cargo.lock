@@ -4239,6 +4239,7 @@ dependencies = [
  "axum",
  "burn",
  "model_shared",
+ "rand 0.8.6",
  "reqwest",
  "serde",
  "serde_json",

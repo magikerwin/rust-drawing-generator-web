@@ -74,11 +74,14 @@ pub fn train<B: AutodiffBackend, D1, D2>(
     // Set the backend random seed for reproducible initialization and shuffling
     B::seed(config.seed);
 
+    let is_quickdraw = num_classes > 10;
+
     // Initialize the batcher for training data (needs autodiff backend B to track gradients)
-    let batcher_train = MnistBatcher::<B>::new(device.clone());
+    let batcher_train = MnistBatcher::<B>::new(device.clone(), true, is_quickdraw);
     
     // Initialize the batcher for validation data (uses B::InnerBackend which skips tracking gradients)
-    let batcher_valid = MnistBatcher::<B::InnerBackend>::new(device.clone());
+    let batcher_valid = MnistBatcher::<B::InnerBackend>::new(device.clone(), false, false);
+
 
     // Build the training DataLoader
     let dataloader_train = DataLoaderBuilder::new(batcher_train)

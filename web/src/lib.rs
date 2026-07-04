@@ -34,7 +34,7 @@ impl MnistPredictor {
     }
     
     pub fn predict(&self, raw_image: &[f32]) -> Result<Vec<f32>, JsValue> {
-        predict_internal(&self.model, &self.device, raw_image)
+        predict_internal(&self.model, &self.device, raw_image, false) // MNIST expects [0, 255]
     }
 }
 
@@ -62,7 +62,7 @@ impl QuickdrawPredictor {
     }
     
     pub fn predict(&self, raw_image: &[f32]) -> Result<Vec<f32>, JsValue> {
-        predict_internal(&self.model, &self.device, raw_image)
+        predict_internal(&self.model, &self.device, raw_image, true) // Quickdraw expects [0, 1]
     }
 }
 
@@ -70,6 +70,7 @@ fn predict_internal(
     model: &Model<NdArray>,
     device: &<NdArray as Backend>::Device,
     raw_image: &[f32],
+    normalize_to_one: bool,
 ) -> Result<Vec<f32>, JsValue> {
     if raw_image.len() != 784 {
         return Err(JsValue::from_str("Input must be exactly 784 pixels"));
@@ -78,11 +79,21 @@ fn predict_internal(
     let mut image_array = [0.0f32; 784];
     image_array.copy_from_slice(raw_image);
     
-    // Self-healing: if frontend sends normalized [0, 1] pixels, scale them to [0, 255]
     let max_pixel = image_array.iter().fold(0.0f32, |m, &x| m.max(x));
-    if max_pixel <= 1.0 && max_pixel > 0.0 {
-        for val in image_array.iter_mut() {
-            *val *= 255.0;
+    
+    if normalize_to_one {
+        // Quickdraw expects [0.0..1.0]. If input is in [0..255] range, normalize it.
+        if max_pixel > 1.0 {
+            for val in image_array.iter_mut() {
+                *val /= 255.0;
+            }
+        }
+    } else {
+        // MNIST expects [0.0..255.0]. If input is in [0..1] range, scale it.
+        if max_pixel <= 1.0 && max_pixel > 0.0 {
+            for val in image_array.iter_mut() {
+                *val *= 255.0;
+            }
         }
     }
     
@@ -100,6 +111,7 @@ fn predict_internal(
         
     Ok(probs_vec)
 }
+
 
 #[cfg(test)]
 mod tests {

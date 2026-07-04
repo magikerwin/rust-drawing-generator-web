@@ -244,8 +244,31 @@ async fn main() {
                 );
             }
         } else {
-            let train_dataset = MnistDataset::train();
-            let valid_dataset = MnistDataset::test();
+            use burn::data::dataset::InMemDataset;
+            
+            println!("Loading MNIST dataset into memory...");
+            
+            // Force contiguous memory allocations for all items
+            let mnist_train = MnistDataset::train();
+            let mut train_items = Vec::with_capacity(60000);
+            for i in 0..mnist_train.len() {
+                if let Some(item) = mnist_train.get(i) {
+                    train_items.push(item);
+                }
+            }
+            let train_dataset = InMemDataset::new(train_items);
+
+            let mnist_test = MnistDataset::test();
+            let mut valid_items = Vec::with_capacity(10000);
+            for i in 0..mnist_test.len() {
+                if let Some(item) = mnist_test.get(i) {
+                    valid_items.push(item);
+                }
+            }
+            let valid_dataset = InMemDataset::new(valid_items);
+
+
+
 
             if run_gpu {
                 println!("Starting MNIST training on GPU (WGPU backend)...");

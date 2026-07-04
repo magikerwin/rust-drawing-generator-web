@@ -9,9 +9,15 @@ use std::process::Command;
 /// This avoids committing large binary files to Git, while maintaining a smooth
 /// offline local development cycle and automated GitHub Actions builds.
 fn main() {
-    // Cache invalidation trigger: forces rebuild with correct weights
+    // Tell Cargo to re-run this script if build.rs or weights-version.txt changes
     println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=weights-version.txt");
 
+    // Read the target weights release version from weights-version.txt
+    let version = fs::read_to_string("weights-version.txt")
+        .expect("Failed to read weights-version.txt")
+        .trim()
+        .to_string();
 
     let out_dir = std::env::var("OUT_DIR").expect("OUT_DIR not set");
     let dest_mnist = Path::new(&out_dir).join("mnist-model.bin");
@@ -33,7 +39,7 @@ fn main() {
         // CI/New Developer Fallback: download stable weights from GitHub Releases
         println!("cargo:warning=Local MNIST weights not found in target/, downloading from GitHub Releases...");
         download_file(
-            "https://github.com/magikerwin/rust-burn-classifier-web/releases/download/v1.0.0/mnist-model.bin",
+            &format!("https://github.com/magikerwin/rust-burn-classifier-web/releases/download/{}/mnist-model.bin", version),
             &dest_mnist,
         ).unwrap();
     }
@@ -50,11 +56,12 @@ fn main() {
         // CI/New Developer Fallback: download stable weights from GitHub Releases
         println!("cargo:warning=Local Quick Draw weights not found in target/, downloading from GitHub Releases...");
         download_file(
-            "https://github.com/magikerwin/rust-burn-classifier-web/releases/download/v1.0.0/quickdraw-model.bin",
+            &format!("https://github.com/magikerwin/rust-burn-classifier-web/releases/download/{}/quickdraw-model.bin", version),
             &dest_qd,
         ).unwrap();
     }
 }
+
 
 /// Downloads a file using `curl`.
 /// Using std::process::Command calling `curl` keeps build dependencies light

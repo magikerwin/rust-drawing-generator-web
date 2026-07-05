@@ -85,30 +85,27 @@ impl<B: Backend> Model<B> {
         let y = y.swap_dims(1, 3);
         let y = self.ln1.forward(y);
         let y = y.swap_dims(1, 3);
-        let y = relu(y);
         
         let shortcut = self.proj1.forward(input);
-        let x = y + shortcut;
+        let x = relu(y + shortcut);
 
         // Block 2: Conv (stride 2) + Proj (stride 2)
         let y = self.conv2.forward(x.clone());
         let y = y.swap_dims(1, 3);
         let y = self.ln2.forward(y);
         let y = y.swap_dims(1, 3);
-        let y = relu(y);
 
         let shortcut = self.proj2.forward(x);
-        let x = y + shortcut;
+        let x = relu(y + shortcut);
 
         // Block 3: Conv (stride 1) + Proj (stride 1)
         let y = self.conv3.forward(x.clone());
         let y = y.swap_dims(1, 3);
         let y = self.ln3.forward(y);
         let y = y.swap_dims(1, 3);
-        let y = relu(y);
 
         let shortcut = self.proj3.forward(x);
-        let x = y + shortcut;
+        let x = relu(y + shortcut);
 
         // Global Average Pooling: [Batch, 64, 7, 7] -> [Batch, 64, 1, 1]
         let x = x.mean_dim(2).mean_dim(3);

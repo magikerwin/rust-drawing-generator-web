@@ -113,7 +113,7 @@ pub fn train<B: AutodiffBackend, D1, D2>(
         .build(
             Model::<B>::new(&device, num_classes), // Instantiate the MLP model
             config.optimizer.init(),  // Initialize the optimizer state
-            1e-4,                    // Learning rate
+            1e-3,                    // Learning rate
         );
 
     // Start the training and validation loops

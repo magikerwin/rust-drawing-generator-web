@@ -547,6 +547,9 @@
     function initUI() {
         const isQuickdraw = appConfig.dataset === 'quickdraw';
         
+        // Dynamic stroke width adjustment: MNIST needs thick lines (28px), QuickDraw needs thin lines (14px)
+        ctx.lineWidth = isQuickdraw ? 14 : 28;
+        
         // Update Title & Heading labels
         const modeLabel = runMode === 'wasm' ? ' (WASM)' : '';
         document.title = isQuickdraw 

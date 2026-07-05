@@ -57,7 +57,7 @@ impl<B: Backend> Model<B> {
         let fc1 = LinearConfig::new(64, 128).init(device);
         let fc2 = LinearConfig::new(128, num_classes).init(device);
 
-        let dropout = DropoutConfig::new(0.35).init();
+        let dropout = DropoutConfig::new(0.1).init();
 
         Self {
             conv1,

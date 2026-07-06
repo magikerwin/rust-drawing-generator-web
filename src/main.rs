@@ -54,6 +54,13 @@ async fn index_handler() -> Html<&'static str> {
     Html(include_str!("../docs/index.html"))
 }
 
+/// Handler that serves the model weights version dynamically
+async fn weights_version_handler() -> Result<String, axum::http::StatusCode> {
+    tokio::fs::read_to_string("docs/weights-version.txt")
+        .await
+        .map_err(|_| axum::http::StatusCode::NOT_FOUND)
+}
+
 /// Handler that handles post requests to run model predictions on drawing inputs
 async fn predict_handler(
     State(state): State<AppState>,
@@ -142,6 +149,7 @@ async fn main() {
         // Construct Axum application routing
         let app = Router::new()
             .route("/", get(index_handler))
+            .route("/weights-version.txt", get(weights_version_handler))
             .route("/predict", post(predict_handler))
             .route("/api/config", get(config_handler))
             .with_state(state);

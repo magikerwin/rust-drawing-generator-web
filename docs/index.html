@@ -424,8 +424,7 @@
             <div
                 style="font-weight: 600; font-size: 1rem; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
                 <span>Developer Console</span>
-                <span style="font-size: 0.75rem; color: var(--text-sub);" id="debugStatusLabel">Model Version: v1.2.0
-                    (Shared)</span>
+                <span style="font-size: 0.75rem; color: var(--text-sub);" id="debugStatusLabel">Model Version: loading...</span>
             </div>
 
             <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
@@ -506,8 +505,26 @@
         const previewCanvas = document.getElementById('previewCanvas');
         const previewCtx = previewCanvas.getContext('2d');
         const systemLogsBox = document.getElementById('systemLogsBox');
+        const debugStatusLabel = document.getElementById('debugStatusLabel');
 
         let wasmLoadError = null;
+
+        async function syncModelVersionLabel() {
+            try {
+                const response = await fetch('./weights-version.txt', { cache: 'no-store' });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+                const version = (await response.text()).trim();
+                if (version) {
+                    debugStatusLabel.textContent = `Model Version: ${version} (Shared)`;
+                } else {
+                    debugStatusLabel.textContent = 'Model Version: unavailable';
+                }
+            } catch (err) {
+                console.warn('Failed to load model version label:', err);
+                debugStatusLabel.textContent = 'Model Version: unavailable';
+            }
+        }
 
 
         // Helper to write to debug console terminal
@@ -544,6 +561,8 @@
         ctx.fillStyle = '#000000';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+
+        syncModelVersionLabel();
 
         // Initial page configurations loading
         logToSystem('Connecting to Axum backend server...');

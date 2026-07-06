@@ -2,6 +2,11 @@ param (
     [string]$Version = "v1.0.0"
 )
 
+$versionFiles = @(
+    (Join-Path $PSScriptRoot "web/weights-version.txt"),
+    (Join-Path $PSScriptRoot "docs/weights-version.txt")
+)
+
 # Verify GitHub CLI (gh) is installed
 if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
     Write-Error "GitHub CLI (gh) is not installed. Please install it and log in using 'gh auth login' before running this script."
@@ -32,8 +37,15 @@ Copy-Item $qdWeights "quickdraw-model.bin"
 Write-Host "Uploading model weights to GitHub Release $Version (overwriting previous assets)..." -ForegroundColor Cyan
 gh release upload $Version "mnist-model.bin" "quickdraw-model.bin" --clobber
 
+Write-Host "Updating weights version files..." -ForegroundColor Cyan
+foreach ($versionFile in $versionFiles) {
+    Set-Content -Path $versionFile -Value $Version -NoNewline
+    Write-Host "Updated $versionFile to $Version." -ForegroundColor Green
+}
+
 Write-Host "Cleaning up temporary files..." -ForegroundColor Cyan
 Remove-Item "mnist-model.bin" -Force
 Remove-Item "quickdraw-model.bin" -Force
 
 Write-Host "Success! Model weights uploaded successfully to GitHub Release $Version." -ForegroundColor Green
+Write-Host "Remember to commit and push the updated version files so CI and the web UI use the new release." -ForegroundColor Yellow

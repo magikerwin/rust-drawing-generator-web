@@ -290,11 +290,20 @@ To update the model weights used by the CI runner:
    powershell -ExecutionPolicy Bypass -File ./publish-weights.ps1 -Version v2.0.0
    ```
 
-3. Trigger the deployment:
+   The script now updates [web/weights-version.txt](web/weights-version.txt) and [docs/weights-version.txt](docs/weights-version.txt) automatically, so you no longer need to edit those files by hand.
+
+3. Commit and push the updated version files along with any code changes:
+   ```sh
+   git add web/weights-version.txt docs/weights-version.txt
+   git commit -m "Update model weights version"
+   git push origin master
+   ```
+
+4. Trigger the deployment:
    - **Code changes**: `git push origin master`
    - **Weights only**: Go to **Actions → Deploy WebAssembly to GitHub Pages → Run workflow**
 
-4. Verify your repository settings under **Settings → Pages → Build and deployment**:
+5. Verify your repository settings under **Settings → Pages → Build and deployment**:
    - **Source**: `GitHub Actions`
 
    > ℹ️ The workflow uses the official GitHub Pages API (`upload-pages-artifact` + `deploy-pages`), so no `gh-pages` branch is needed.

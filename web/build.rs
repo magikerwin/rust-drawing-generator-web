@@ -15,9 +15,17 @@ fn main() {
 
     // Read the target weights release version from weights-version.txt
     let version = fs::read_to_string("weights-version.txt")
-        .expect("Failed to read weights-version.txt")
+        .unwrap_or_else(|_| {
+            panic!(
+                "Failed to read weights-version.txt. Run ./publish-weights.ps1 to sync the release version, or update web/weights-version.txt manually."
+            )
+        })
         .trim()
         .to_string();
+
+    if version.is_empty() {
+        panic!("weights-version.txt is empty. Run ./publish-weights.ps1 to populate it.");
+    }
 
     let out_dir = std::env::var("OUT_DIR").expect("OUT_DIR not set");
     let dest_mnist = Path::new(&out_dir).join("mnist-model.bin");

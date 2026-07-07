@@ -33,12 +33,21 @@ jobs:
         run: |
           wasm-pack build web --target web --out-dir ../docs/pkg
 
+      - name: Download Model Weights from GitHub Releases
+        run: |
+          VERSION=$(cat docs/weights-version.txt | xargs)
+          echo "Downloading version $VERSION weights..."
+          curl -L -f -o docs/mnist-model.bin "https://github.com/magikerwin/rust-burn-classifier-web/releases/download/$VERSION/mnist-model.bin"
+          curl -L -f -o docs/quickdraw-model.bin "https://github.com/magikerwin/rust-burn-classifier-web/releases/download/$VERSION/quickdraw-model.bin"
+
       - name: Assert required files exist
         run: |
           echo "Checking build output..."
           test -f docs/index.html             || (echo "MISSING: docs/index.html" && exit 1)
           test -f docs/pkg/mnist_web.js       || (echo "MISSING: docs/pkg/mnist_web.js" && exit 1)
           test -f docs/pkg/mnist_web_bg.wasm  || (echo "MISSING: docs/pkg/mnist_web_bg.wasm" && exit 1)
+          test -f docs/mnist-model.bin        || (echo "MISSING: docs/mnist-model.bin" && exit 1)
+          test -f docs/quickdraw-model.bin    || (echo "MISSING: docs/quickdraw-model.bin" && exit 1)
           echo "All required files present. Proceeding with deployment."
 
       - name: Setup Pages

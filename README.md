@@ -349,7 +349,11 @@ Rather than training on all 345 categories (39 GB of raw data), we train on a cu
 ## 📚 References
 
 - [Burn — Deep Learning Framework for Rust](https://burn.dev/)
+- [The Burn Book](https://burn.dev/book/)
 - [tracel-ai/burn MNIST example](https://github.com/tracel-ai/burn/blob/main/examples/mnist/examples/mnist.rs)
+- [Google Quick, Draw! Dataset](https://github.com/googlecreativelab/quickdraw-dataset)
+- [wasm-pack — Rust WebAssembly Packager](https://rustwasm.github.io/wasm-pack/)
+- [Yann LeCun's MNIST Database](https://yann.lecun.com/exdb/mnist/)
 
 ---
 

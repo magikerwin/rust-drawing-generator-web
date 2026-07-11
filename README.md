@@ -4,7 +4,7 @@
 >
 > 🚀 **[Try the Live WebAssembly Demo!](https://magikerwin.github.io/rust-drawing-classifier-web/)**
 
-![image](assets/web_demo_mnist.webp)
+![image](assets/web_demo.webp)
 
 ---
 

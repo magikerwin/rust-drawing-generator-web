@@ -135,9 +135,10 @@ impl<B: Backend> UNetBlock<B> {
         let mut h = h.clone() * sigmoid(h); // SiLU
         
         // Add time/class conditioning embedding
+        let batch_size = x.shape().dims[0];
+        let out_channels = h.shape().dims[1];
         let cond_proj = self.time_mlp.forward(cond)
-            .unsqueeze_dim::<4>(2)
-            .unsqueeze_dim::<4>(3); // [B, out_channels, 1, 1]
+            .reshape([batch_size, out_channels, 1, 1]);
         h = h + cond_proj;
         
         let h = self.conv2.forward(h);

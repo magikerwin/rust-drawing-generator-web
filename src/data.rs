@@ -3,39 +3,48 @@ use burn::{
     prelude::*,
 };
 use rand::Rng;
+use model_shared::DDIMScheduler;
 
 // Clone is required by the DataLoader to send copies of the batcher to multiple worker threads.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct MnistBatcher<B: Backend> {
     device: B::Device,
     is_training: bool,
     allow_flip: bool,
+    scheduler: std::sync::Arc<DDIMScheduler>,
 }
 
 impl<B: Backend> MnistBatcher<B> {
     pub fn new(device: B::Device, is_training: bool, allow_flip: bool) -> Self {
+        // Standard 1000-step linear schedule for training
+        let scheduler = std::sync::Arc::new(DDIMScheduler::new(1000, 1e-4, 0.02));
         Self {
             device,
             is_training,
             allow_flip,
+            scheduler,
         }
     }
 }
 
 #[derive(Clone, Debug)]
 pub struct MnistBatch<B: Backend> {
-    pub images: Tensor<B, 4>,
+    pub corrupted_images: Tensor<B, 4>,
     pub targets: Tensor<B, 1, Int>,
+    pub timesteps: Tensor<B, 1>,
+    pub noise: Tensor<B, 4>,
 }
 
 impl<B: Backend> Batcher<MnistItem, MnistBatch<B>> for MnistBatcher<B> {
     fn batch(&self, items: Vec<MnistItem>) -> MnistBatch<B> {
         let mut rng = rand::thread_rng();
+        let batch_size = items.len();
 
-        let images = items
+        // 1. Process clean images and normalize to [-1.0, 1.0]
+        let clean_images = items
             .iter()
             .map(|item| {
-                if self.is_training {
+                let img = if self.is_training {
                     // Random shift between -2 and +2 pixels
                     let dx = rng.gen_range(-2..=2);
                     let dy = rng.gen_range(-2..=2);
@@ -47,14 +56,31 @@ impl<B: Backend> Batcher<MnistItem, MnistBatch<B>> for MnistBatcher<B> {
                     augment_image(&item.image, dx, dy, scale, flip_h)
                 } else {
                     item.image
+                };
+
+                // Determine max pixel to check range ([0..1] vs [0..255])
+                let max_pixel = img.iter().flat_map(|row| row.iter()).fold(0.0f32, |m, &x| m.max(x));
+                let mut img_normalized = [[0.0f32; 28]; 28];
+                for y in 0..28 {
+                    for x in 0..28 {
+                        let val = img[y][x];
+                        img_normalized[y][x] = if max_pixel > 1.0 {
+                            (val / 127.5) - 1.0
+                        } else {
+                            (val * 2.0) - 1.0
+                        };
+                    }
                 }
+                img_normalized
             })
             .map(|img| TensorData::from(img))
             .map(|data| Tensor::<B, 2>::from_data(data, &self.device))
-            // Reshape from [28, 28] to [1, 1, 28, 28] to represent [batch, channel, height, width]
             .map(|tensor| tensor.reshape([1, 1, 28, 28]))
             .collect::<Vec<_>>();
 
+        let clean_images = Tensor::cat(clean_images, 0); // [B, 1, 28, 28]
+
+        // 2. Generate target class labels
         let targets = items
             .iter()
             .map(|item| {
@@ -64,12 +90,32 @@ impl<B: Backend> Batcher<MnistItem, MnistBatch<B>> for MnistBatcher<B> {
                 )
             })
             .collect::<Vec<_>>();
+        let targets = Tensor::cat(targets, 0); // [B]
 
-        // Concatenate all tensors along the batch dimension (dim 0)
-        let images = Tensor::cat(images, 0);
-        let targets = Tensor::cat(targets, 0);
+        // 3. Generate random timesteps t ~ U(0, 1000)
+        let mut t_vec = Vec::with_capacity(batch_size);
+        for _ in 0..batch_size {
+            t_vec.push(rng.gen_range(0..1000) as i64);
+        }
+        let timesteps_int = Tensor::<B, 1, Int>::from_ints(t_vec.as_slice(), &self.device);
+        let timesteps = timesteps_int.clone().float(); // [B]
 
-        MnistBatch { images, targets }
+        // 4. Generate random Gaussian noise epsilon ~ N(0, I)
+        let noise = Tensor::<B, 4>::random(
+            [batch_size, 1, 28, 28],
+            burn::tensor::Distribution::Normal(0.0, 1.0),
+            &self.device,
+        );
+
+        // 5. Corrupt clean images to get x_t
+        let corrupted_images = self.scheduler.add_noise(clean_images, noise.clone(), timesteps_int);
+
+        MnistBatch {
+            corrupted_images,
+            targets,
+            timesteps,
+            noise,
+        }
     }
 }
 
@@ -103,7 +149,6 @@ fn augment_image(
     augmented
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -114,7 +159,6 @@ mod tests {
         type TestBackend = NdArray;
         let device = Default::default();
         let batcher = MnistBatcher::<TestBackend>::new(device, false, false);
-
 
         let item1 = MnistItem {
             image: [[0.0; 28]; 28],
@@ -127,10 +171,16 @@ mod tests {
 
         let batch = batcher.batch(vec![item1, item2]);
 
-        let image_shape = batch.images.shape();
+        let image_shape = batch.corrupted_images.shape();
         assert_eq!(image_shape.dims, [2, 1, 28, 28]);
 
         let target_shape = batch.targets.shape();
         assert_eq!(target_shape.dims, [2]);
+
+        let noise_shape = batch.noise.shape();
+        assert_eq!(noise_shape.dims, [2, 1, 28, 28]);
+
+        let timesteps_shape = batch.timesteps.shape();
+        assert_eq!(timesteps_shape.dims, [2]);
     }
 }

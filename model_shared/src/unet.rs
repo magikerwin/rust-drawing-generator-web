@@ -1,6 +1,6 @@
 use burn::{
     module::Module,
-    nn::{Linear, LinearConfig},
+    nn::{Linear, LinearConfig, Embedding, EmbeddingConfig},
     prelude::*,
     tensor::activation::sigmoid,
 };
@@ -49,5 +49,25 @@ impl<B: Backend> TimeEmbedding<B> {
         let x = self.linear_1.forward(emb);
         let x = x.clone() * sigmoid(x);
         self.linear_2.forward(x)
+    }
+}
+
+/// Class conditioning embedding module to embed class labels.
+#[derive(Module, Debug)]
+pub struct ClassEmbedding<B: Backend> {
+    embedding: Embedding<B>,
+    linear: Linear<B>,
+}
+
+impl<B: Backend> ClassEmbedding<B> {
+    pub fn new(device: &B::Device, num_classes: usize, dim: usize) -> Self {
+        let embedding = EmbeddingConfig::new(num_classes, dim).init(device);
+        let linear = LinearConfig::new(dim, dim * 4).init(device);
+        Self { embedding, linear }
+    }
+
+    pub fn forward(&self, class_ids: Tensor<B, 1, Int>) -> Tensor<B, 2> {
+        let x = self.embedding.forward(class_ids);
+        self.linear.forward(x)
     }
 }

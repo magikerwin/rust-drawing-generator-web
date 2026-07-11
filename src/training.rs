@@ -43,6 +43,7 @@ pub fn train<B: AutodiffBackend, D1, D2>(
     train_dataset: D1,
     valid_dataset: D2,
     num_classes: usize,
+    allow_horizontal_flip: bool,
 ) where
     D1: Dataset<burn::data::dataset::vision::MnistItem> + 'static,
     D2: Dataset<burn::data::dataset::vision::MnistItem> + 'static,
@@ -73,11 +74,6 @@ pub fn train<B: AutodiffBackend, D1, D2>(
 
     // Set the backend random seed for reproducible initialization and shuffling
     B::seed(config.seed);
-
-    // MNIST digits cannot be horizontally flipped (e.g. flipping '3' changes its semantic meaning),
-
-    // but Quick Draw doodles are direction-agnostic (a flipped cat is still a cat).
-    let allow_horizontal_flip = num_classes > 10;
 
     // Initialize the batcher for training data (needs autodiff backend B to track gradients)
     let batcher_train = MnistBatcher::<B>::new(device.clone(), true, allow_horizontal_flip);
@@ -189,7 +185,7 @@ mod tests {
         config.num_workers = 1;
 
         // 3. Dry-run training on the mock dataset (will finish instantly)
-        train::<TestBackend, _, _>(artifact_dir, config, device, train_dataset, valid_dataset, 10);
+        train::<TestBackend, _, _>(artifact_dir, config, device, train_dataset, valid_dataset, 10, false);
 
         // 4. Verify that parameters were successfully optimized and saved
         assert!(std::path::Path::new(&format!("{artifact_dir}/model.mpk")).exists() 

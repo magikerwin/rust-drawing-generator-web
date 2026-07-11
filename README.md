@@ -137,7 +137,7 @@ After 5 epochs of training:
 | Dataset | Validation Accuracy | Validation Loss |
 |---|---|---|
 | **MNIST** (10 classes) | `~98%+` | `~0.05` |
-| **EMNIST Letters** (26 classes) | `~84%+` | `~0.49` |
+| **EMNIST Letters** (26 classes) | `~90%+` | `~0.30` |
 | **Quick, Draw!** (25 classes) | `~86%+` | `~0.51` |
 
 
@@ -299,6 +299,12 @@ Start the browser-based drawing pad backed by the Rust Axum server:
   ```
   Open **[http://127.0.0.1:3000](http://127.0.0.1:3000)** to draw digits (0–9).
 
+- **EMNIST Letters**:
+  ```sh
+  cargo run --release -- --serve --dataset emnist
+  ```
+  Open **[http://127.0.0.1:3000](http://127.0.0.1:3000)** to draw letters (A–Z).
+
 - **Quick, Draw! Doodles**:
   ```sh
   cargo run --release -- --serve --dataset quickdraw
@@ -310,8 +316,8 @@ Start the browser-based drawing pad backed by the Rust Axum server:
 ### Client-Side WebAssembly App (WASM)
 
 The trained models compile to WebAssembly for fully client-side inference. Model weights are **decoupled from Git history** to avoid binary bloat:
-- **Locally**: `build.rs` copies fresh weights from `target/` at compile time.
-- **In CI**: `build.rs` downloads stable weights from GitHub Releases via `curl`.
+- **Locally**: The weights (`*-model.bin`) are copied to the `docs/` folder (which is ignored by Git).
+- **In CI**: The GitHub Actions deployment workflow automatically downloads the weights from GitHub Releases during build.
 
 #### 1. Build the WASM bundle locally
 

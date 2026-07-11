@@ -130,7 +130,7 @@ fn parse_images_gzip(path: &Path) -> Vec<[[f32; 28]; 28]> {
             for x in 0..28 {
                 // EMNIST images are stored transposed (rotated & flipped).
                 // Swapping rows and columns transposes them back to the correct standard orientation.
-                img[y][x] = img_buf[x * 28 + y] as f32 / 255.0;
+                img[y][x] = img_buf[x * 28 + y] as f32;
             }
         }
         images.push(img);

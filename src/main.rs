@@ -305,6 +305,7 @@ async fn main() {
                     train_dataset,
                     valid_dataset,
                     num_classes,
+                    true, // allow_horizontal_flip
                 );
             } else {
                 println!("Starting Quick, Draw! training on CPU (NdArray backend)...");
@@ -315,6 +316,7 @@ async fn main() {
                     train_dataset,
                     valid_dataset,
                     num_classes,
+                    true, // allow_horizontal_flip
                 );
             }
         } else if dataset_arg == "emnist" {
@@ -348,6 +350,7 @@ async fn main() {
                     train_dataset,
                     valid_dataset,
                     num_classes,
+                    false, // allow_horizontal_flip
                 );
             } else {
                 println!("Starting EMNIST Letters training on CPU (NdArray backend)...");
@@ -358,6 +361,7 @@ async fn main() {
                     train_dataset,
                     valid_dataset,
                     num_classes,
+                    false, // allow_horizontal_flip
                 );
             }
         } else {
@@ -393,6 +397,7 @@ async fn main() {
                     train_dataset,
                     valid_dataset,
                     num_classes,
+                    false, // allow_horizontal_flip
                 );
             } else {
                 println!("Starting MNIST training on CPU (NdArray backend)...");
@@ -403,6 +408,7 @@ async fn main() {
                     train_dataset,
                     valid_dataset,
                     num_classes,
+                    false, // allow_horizontal_flip
                 );
             }
         }

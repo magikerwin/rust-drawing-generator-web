@@ -3,7 +3,6 @@ use burn::{
     backend::NdArray,
     prelude::*,
     record::{CompactRecorder, Recorder},
-    tensor::activation::softmax,
 };
 
 /// Loads the trained model weights from the artifact directory and returns the Model.
@@ -19,82 +18,109 @@ pub fn load_model(artifact_dir: &str, device: &<NdArray as Backend>::Device, num
     Model::<NdArray>::new(device, num_classes).load_record(record)
 }
 
-/// Performs prediction on a raw 28x28 flattened image array.
-// TODO: Remove this function and migrate its unit tests once all clients fully transition to using `predict_probabilities`.
-#[allow(dead_code)]
-pub fn predict(model: &Model<NdArray>, raw_image: [f32; 784], device: &<NdArray as Backend>::Device) -> usize {
-    // 1. Convert the raw array into a 4D Burn Tensor: shape [1, 1, 28, 28]
-    let input = Tensor::<NdArray, 1>::from_floats(raw_image, device)
-        .reshape([1, 1, 28, 28]);
-
-    // 2. Perform the forward pass (inference)
-    let output = model.forward(input);
-
-    // 3. Find the index with the highest probability value (ArgMax)
-    let predicted = output.argmax(1);
-
-    // 4. Extract the index value as a standard scalar integer
-    let value = predicted.into_scalar() as usize;
-
-    value
+/// Helper function to convert a 4D image tensor in [-1, 1] range to a 1D pixel array in [0, 255] range.
+fn tensor_to_pixels<B: Backend>(tensor: Tensor<B, 4>) -> Vec<f32> {
+    let data = tensor.into_data().into_vec::<f32>().expect("Failed to extract tensor data");
+    data.into_iter()
+        .map(|val| {
+            let denorm = (val + 1.0) * 127.5;
+            denorm.clamp(0.0, 255.0)
+        })
+        .collect()
 }
 
-/// Performs prediction on a raw 28x28 flattened image array, returning both the predicted digit and all 10 softmax probabilities.
-pub fn predict_probabilities(
+/// Generates a drawing using the iterative DDIM reverse process.
+/// Returns a history of intermediate images (each flattened to 784 pixels in [0, 255] range).
+pub fn generate_image_steps(
     model: &Model<NdArray>,
-    raw_image: [f32; 784],
     device: &<NdArray as Backend>::Device,
-) -> (usize, Vec<f32>) {
-    // 1. Convert raw array to 4D Tensor [1, 1, 28, 28]
-    let input = Tensor::<NdArray, 1>::from_floats(raw_image, device)
-        .reshape([1, 1, 28, 28]);
+    class_id: usize,
+    num_steps: usize,
+) -> Vec<Vec<f32>> {
+    let scheduler = model_shared::DDIMScheduler::new(1000, 1e-4, 0.02);
+    
+    // Start with random Gaussian noise x_T ~ N(0, I)
+    let mut x_t = Tensor::<NdArray, 4>::random(
+        [1, 1, 28, 28],
+        burn::tensor::Distribution::Normal(0.0, 1.0),
+        device,
+    );
+    
+    let class_ids = Tensor::<NdArray, 1, Int>::from_ints([class_id as i32], device);
+    
+    // Generate skipped timesteps for DDIM
+    let mut steps = Vec::new();
+    let step_ratio = 1000 / num_steps;
+    for i in (0..num_steps).rev() {
+        steps.push(i * step_ratio);
+    }
+    
+    let mut history = Vec::with_capacity(steps.len() + 1);
+    
+    // Push the initial noise state
+    history.push(tensor_to_pixels(x_t.clone()));
+    
+    // DDIM Denoising Loop
+    for i in 0..steps.len() {
+        let t = steps[i];
+        let prev_t = if i + 1 < steps.len() {
+            Some(steps[i + 1])
+        } else {
+            None
+        };
+        
+        let timesteps = Tensor::<NdArray, 1>::from_floats([t as f32], device);
+        
+        // Predict noise using the U-Net model
+        let predicted_noise = model.unet.forward(x_t.clone(), timesteps, class_ids.clone());
+        
+        // Denoise one step
+        x_t = scheduler.step(x_t, predicted_noise, t, prev_t);
+        
+        // Push intermediate drawing state
+        history.push(tensor_to_pixels(x_t.clone()));
+    }
+    
+    history
+}
 
-    // 2. Perform forward pass
-    let output = model.forward(input);
-
-    // 3. Extract the predicted class index using argmax
-    let predicted = output.clone().argmax(1).into_scalar() as usize;
-
-    // 4. Run softmax to get probability scores (values between 0.0 and 1.0)
-    let probs = softmax(output, 1);
-    let probs_vec = probs.into_data().into_vec::<f32>().expect("Failed to extract probability data");
-
-    (predicted, probs_vec)
+/// Renders a 784-pixel drawing to the console as ASCII art.
+pub fn render_ascii(pixels: &[f32]) {
+    assert_eq!(pixels.len(), 784);
+    for y in 0..28 {
+        let mut line = String::new();
+        for x in 0..28 {
+            let val = pixels[y * 28 + x];
+            let char = if val > 200.0 {
+                "#"
+            } else if val > 150.0 {
+                "%"
+            } else if val > 100.0 {
+                "*"
+            } else if val > 50.0 {
+                "."
+            } else {
+                " "
+            };
+            line.push_str(char);
+        }
+        println!("{}", line);
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use burn::backend::NdArray;
 
     #[test]
-    fn test_predict() {
+    fn test_generate_image_steps() {
         let device = Default::default();
         let model = Model::<NdArray>::new(&device, 10);
-
-        // Run prediction on a dummy image (all zeros)
-        let dummy_image = [0.0f32; 784];
-        let predicted_digit = predict(&model, dummy_image, &device);
-
-        // The predicted digit should be a valid class index between 0 and 9
-        assert!(predicted_digit < 10);
-    }
-
-    #[test]
-    fn test_predict_probabilities() {
-        let device = Default::default();
-        let model = Model::<NdArray>::new(&device, 10);
-
-        let dummy_image = [0.0f32; 784];
-        let (predicted_digit, probabilities) = predict_probabilities(&model, dummy_image, &device);
-
-        // 1. Predicted digit is valid
-        assert!(predicted_digit < 10);
-
-        // 2. We get exactly 10 probabilities (one for each digit 0-9)
-        assert_eq!(probabilities.len(), 10);
-
-        // 3. Softmax properties: sum of probabilities must be close to 1.0
-        let sum: f32 = probabilities.iter().sum();
-        assert!((sum - 1.0).abs() < 1e-5);
+        
+        // Generate with 5 steps for test performance
+        let history = generate_image_steps(&model, &device, 3, 5);
+        assert_eq!(history.len(), 6); // 1 initial noise state + 5 denoising steps
+        assert_eq!(history[0].len(), 784);
     }
 }

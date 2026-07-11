@@ -1,6 +1,10 @@
 use burn::{
     module::Module,
-    nn::{Linear, LinearConfig, Embedding, EmbeddingConfig},
+    nn::{
+        conv::{Conv2d, Conv2dConfig},
+        Linear, LinearConfig, Embedding, EmbeddingConfig,
+        GroupNorm, GroupNormConfig,
+    },
     prelude::*,
     tensor::activation::sigmoid,
 };
@@ -71,3 +75,72 @@ impl<B: Backend> ClassEmbedding<B> {
         self.linear.forward(x)
     }
 }
+
+/// Residual Block in the U-Net that incorporates time/class conditioning.
+#[derive(Module, Debug)]
+pub struct UNetBlock<B: Backend> {
+    conv1: Conv2d<B>,
+    norm1: GroupNorm<B>,
+    conv2: Conv2d<B>,
+    norm2: GroupNorm<B>,
+    time_mlp: Linear<B>,
+    shortcut: Option<Conv2d<B>>,
+}
+
+impl<B: Backend> UNetBlock<B> {
+    pub fn new(device: &B::Device, in_channels: usize, out_channels: usize, cond_dim: usize) -> Self {
+        let conv1 = Conv2dConfig::new([in_channels, out_channels], [3, 3])
+            .with_padding(burn::nn::PaddingConfig2d::Explicit(1, 1))
+            .init(device);
+        
+        let num_groups = usize::min(8, out_channels);
+        let norm1 = GroupNormConfig::new(num_groups, out_channels).init(device);
+        
+        let conv2 = Conv2dConfig::new([out_channels, out_channels], [3, 3])
+            .with_padding(burn::nn::PaddingConfig2d::Explicit(1, 1))
+            .init(device);
+        
+        let norm2 = GroupNormConfig::new(num_groups, out_channels).init(device);
+        
+        let time_mlp = LinearConfig::new(cond_dim, out_channels).init(device);
+        
+        let shortcut = if in_channels != out_channels {
+            Some(Conv2dConfig::new([in_channels, out_channels], [1, 1]).init(device))
+        } else {
+            None
+        };
+        
+        Self {
+            conv1,
+            norm1,
+            conv2,
+            norm2,
+            time_mlp,
+            shortcut,
+        }
+    }
+
+    pub fn forward(&self, x: Tensor<B, 4>, cond: Tensor<B, 2>) -> Tensor<B, 4> {
+        let h = self.conv1.forward(x.clone());
+        let h = self.norm1.forward(h);
+        let mut h = h.clone() * sigmoid(h); // SiLU
+        
+        // Add time/class conditioning embedding
+        let cond_proj = self.time_mlp.forward(cond)
+            .unsqueeze_dim::<4>(2)
+            .unsqueeze_dim::<4>(3); // [B, out_channels, 1, 1]
+        h = h + cond_proj;
+        
+        let h = self.conv2.forward(h);
+        let h = self.norm2.forward(h);
+        let h = h.clone() * sigmoid(h); // SiLU
+        
+        let shortcut_out = match &self.shortcut {
+            Some(conv) => conv.forward(x),
+            None => x,
+        };
+        
+        h + shortcut_out
+    }
+}
+

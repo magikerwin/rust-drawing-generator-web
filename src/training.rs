@@ -7,19 +7,17 @@ use burn::{
         dataloader::DataLoaderBuilder,
         dataset::Dataset,
     },
-    nn::loss::CrossEntropyLossConfig,
     optim::AdamConfig,
     prelude::*,
     record::{CompactRecorder, BinFileRecorder, FullPrecisionSettings},
     tensor::backend::AutodiffBackend,
     train::{
-        metric::{AccuracyMetric, LossMetric},
-        ClassificationOutput, LearnerBuilder, TrainOutput, TrainStep, ValidStep,
+        metric::LossMetric,
+        LearnerBuilder, RegressionOutput, TrainOutput, TrainStep, ValidStep,
     },
 };
 
 /// Configuration struct holding the training hyperparameters.
-/// Deriving `Config` allows saving and loading this configuration as a JSON file easily.
 #[derive(Config)]
 pub struct TrainingConfig {
     #[config(default = 5)]
@@ -28,8 +26,6 @@ pub struct TrainingConfig {
     pub batch_size: usize,      // Number of samples in each batch
     #[config(default = 1)]
     pub num_workers: usize,     // Number of parallel threads used for data loading
-
-
     #[config(default = 42)]
     pub seed: u64,              // Seed for random number generators (reproducibility)
     pub optimizer: AdamConfig,  // Optimizer configuration (e.g. learning rate, betas)
@@ -52,7 +48,6 @@ pub fn train<B: AutodiffBackend, D1, D2>(
     if std::path::Path::new(&config_path).exists() {
         if let Ok(existing_content) = std::fs::read_to_string(&config_path) {
             if let Ok(new_content) = serde_json::to_string(&config) {
-                // If configuration has changed, the checkpoints are likely incompatible
                 if existing_content != new_content {
                     println!("\n==========================================================================");
                     println!("WARNING: Training configuration or model architecture mismatch detected!");
@@ -70,18 +65,14 @@ pub fn train<B: AutodiffBackend, D1, D2>(
     std::fs::create_dir_all(artifact_dir).ok();
     config.save(&config_path).expect("Save config failed");
 
-
-
     // Set the backend random seed for reproducible initialization and shuffling
     B::seed(config.seed);
 
-    // Initialize the batcher for training data (needs autodiff backend B to track gradients)
+    // Initialize the batcher for training data
     let batcher_train = MnistBatcher::<B>::new(device.clone(), true, allow_horizontal_flip);
-
     
-    // Initialize the batcher for validation data (uses B::InnerBackend which skips tracking gradients)
+    // Initialize the batcher for validation data
     let batcher_valid = MnistBatcher::<B::InnerBackend>::new(device.clone(), false, false);
-
 
     // Build the training DataLoader
     let dataloader_train = DataLoaderBuilder::new(batcher_train)
@@ -99,17 +90,15 @@ pub fn train<B: AutodiffBackend, D1, D2>(
 
     // Configure and build the training driver (Learner)
     let learner = LearnerBuilder::new(artifact_dir)
-        .metric_train_numeric(AccuracyMetric::new())  // Track training accuracy
-        .metric_valid_numeric(AccuracyMetric::new())  // Track validation accuracy
         .metric_train_numeric(LossMetric::new())      // Track training loss
         .metric_valid_numeric(LossMetric::new())      // Track validation loss
         .with_file_checkpointer(CompactRecorder::new()) // Save training checkpointers on disk
         .devices(vec![device.clone()])
         .num_epochs(config.num_epochs)
         .build(
-            Model::<B>::new(&device, num_classes), // Instantiate the MLP model
+            Model::<B>::new(&device, num_classes), // Instantiate the Model wrapping UNet
             config.optimizer.init(),  // Initialize the optimizer state
-            1e-3,                    // Learning rate
+            2e-4,                    // Learning rate for training the diffusion model
         );
 
     // Start the training and validation loops
@@ -127,30 +116,50 @@ pub fn train<B: AutodiffBackend, D1, D2>(
 }
 
 /// Implement the TrainStep trait for the Model to specify how it performs a single training iteration.
-impl<B: AutodiffBackend> TrainStep<MnistBatch<B>, ClassificationOutput<B>> for Model<B> {
-    fn step(&self, batch: MnistBatch<B>) -> TrainOutput<ClassificationOutput<B>> {
-        let item = self.forward(batch.images);
-        let loss = CrossEntropyLossConfig::new()
-            .init(&item.device())
-            .forward(item.clone(), batch.targets.clone());
+impl<B: AutodiffBackend> TrainStep<MnistBatch<B>, RegressionOutput<B>> for Model<B> {
+    fn step(&self, batch: MnistBatch<B>) -> TrainOutput<RegressionOutput<B>> {
+        let output = self.unet.forward(
+            batch.corrupted_images,
+            batch.timesteps,
+            batch.targets,
+        );
+        let loss = burn::tensor::loss::mse_loss(
+            output.clone(),
+            batch.noise.clone(),
+            burn::tensor::loss::Reduction::Mean,
+        );
 
         TrainOutput::new(
             self,
             loss.backward(),
-            ClassificationOutput::new(loss, item, batch.targets),
+            RegressionOutput::new(
+                loss,
+                output.flatten(1, 3),
+                batch.noise.flatten(1, 3),
+            ),
         )
     }
 }
 
 /// Implement the ValidStep trait for the Model to specify how it evaluates validation data.
-impl<B: Backend> ValidStep<MnistBatch<B>, ClassificationOutput<B>> for Model<B> {
-    fn step(&self, batch: MnistBatch<B>) -> ClassificationOutput<B> {
-        let item = self.forward(batch.images);
-        let loss = CrossEntropyLossConfig::new()
-            .init(&item.device())
-            .forward(item.clone(), batch.targets.clone());
+impl<B: Backend> ValidStep<MnistBatch<B>, RegressionOutput<B>> for Model<B> {
+    fn step(&self, batch: MnistBatch<B>) -> RegressionOutput<B> {
+        let output = self.unet.forward(
+            batch.corrupted_images,
+            batch.timesteps,
+            batch.targets,
+        );
+        let loss = burn::tensor::loss::mse_loss(
+            output.clone(),
+            batch.noise.clone(),
+            burn::tensor::loss::Reduction::Mean,
+        );
 
-        ClassificationOutput::new(loss, item, batch.targets)
+        RegressionOutput::new(
+            loss,
+            output.flatten(1, 3),
+            batch.noise.flatten(1, 3),
+        )
     }
 }
 

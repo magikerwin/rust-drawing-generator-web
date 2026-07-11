@@ -68,6 +68,40 @@ impl DDIMScheduler {
             
         x0 * scale_x + noise * scale_n
     }
+
+    /// Predict the sample at the previous timestep using the DDIM formula.
+    /// x_t: current sample [B, C, H, W]
+    /// model_output: predicted noise [B, C, H, W]
+    /// timestep: current step index (0..num_train_timesteps)
+    /// prev_timestep: previous step index (can be smaller by step_ratio)
+    pub fn step<B: Backend>(
+        &self,
+        x_t: Tensor<B, 4>,
+        model_output: Tensor<B, 4>,
+        timestep: usize,
+        prev_timestep: Option<usize>,
+    ) -> Tensor<B, 4> {
+        let alpha_prod_t = self.alphas_cumprod[timestep];
+        let alpha_prod_t_prev = match prev_timestep {
+            Some(prev) => self.alphas_cumprod[prev],
+            None => 1.0, // If t=0, previous is clean image (alpha_prod = 1.0)
+        };
+        
+        let beta_prod_t = 1.0 - alpha_prod_t;
+        let beta_prod_t_prev = 1.0 - alpha_prod_t_prev;
+        
+        // 1. Predict x0 (clean image) from current x_t and predicted noise
+        // x0_pred = (x_t - sqrt(1 - alpha_bar_t) * model_output) / sqrt(alpha_bar_t)
+        let x0_pred = (x_t.clone() - model_output.clone().mul_scalar(beta_prod_t.sqrt()))
+            .div_scalar(alpha_prod_t.sqrt());
+            
+        // 2. Compute direction pointing to x_t
+        // pred_dir = sqrt(1 - alpha_bar_t_prev) * model_output
+        let pred_dir = model_output.mul_scalar(beta_prod_t_prev.sqrt());
+        
+        // 3. Compute x_{t-1} = sqrt(alpha_bar_t_prev) * x0_pred + pred_dir
+        x0_pred.mul_scalar(alpha_prod_t_prev.sqrt()) + pred_dir
+    }
 }
 
 #[cfg(test)]
@@ -97,5 +131,17 @@ mod tests {
         let val999 = noisy999.into_data().into_vec::<f32>().unwrap()[0];
         // At t=999, alpha_cumprod is very small, so noisy image should be close to 0.0 (since noise is zero)
         assert!((val999 - scheduler.alphas_cumprod[999].sqrt()).abs() < 1e-5);
+    }
+
+    #[test]
+    fn test_step() {
+        let device = Default::default();
+        let scheduler = DDIMScheduler::new(1000, 1e-4, 0.02);
+        
+        let x_t = Tensor::<NdArray, 4>::ones([1, 1, 28, 28], &device);
+        let model_output = Tensor::<NdArray, 4>::ones([1, 1, 28, 28], &device) * 0.1;
+        let prev = scheduler.step(x_t, model_output, 10, Some(9));
+        let prev_vec = prev.into_data().into_vec::<f32>().unwrap();
+        assert_eq!(prev_vec.len(), 784);
     }
 }

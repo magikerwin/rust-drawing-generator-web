@@ -61,5 +61,21 @@ fn main() {
         }
     }
 
+    println!("Copying local trained weights to docs/ folder for web loading...");
+    let datasets = vec![("mnist-model", "target/mnist-model/model.bin"), 
+                        ("emnist-model", "target/emnist-model/model.bin"), 
+                        ("quickdraw-model", "target/quickdraw-model/model.bin")];
+    
+    for (name, src_rel) in datasets {
+        let src_path = root_path.join(src_rel);
+        if src_path.exists() {
+            let dest_path = root_path.join("docs").join(format!("{}.bin", name));
+            println!("  Copying {:?} to {:?}", src_path.file_name().unwrap(), dest_path);
+            if let Err(e) = fs::copy(&src_path, &dest_path) {
+                eprintln!("  Warning: Failed to copy weights for {}: {}", name, e);
+            }
+        }
+    }
+
     println!("Success! WASM build output is ready in docs/pkg/.");
 }

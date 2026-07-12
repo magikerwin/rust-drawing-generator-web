@@ -7,7 +7,7 @@
     <meta http-equiv="Content-Security-Policy"
         content="script-src 'self' 'unsafe-eval' 'unsafe-inline' https://*.github.io;">
 
-    <title>Burn Digit Classifier</title>
+    <title>Burn Drawing Generator</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -96,7 +96,6 @@
                 opacity: 0;
                 transform: translateY(-10px);
             }
-
             to {
                 opacity: 1;
                 transform: translateY(0);
@@ -117,43 +116,37 @@
         }
 
         .tab-btn {
-            background-color: transparent;
-            border: 1px solid transparent;
+            background: transparent;
+            border: none;
             color: var(--text-sub);
-            padding: 6px 14px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-family: inherit;
+            padding: 6px 16px;
             font-size: 0.8rem;
             font-weight: 600;
-            transition: all 0.2s ease;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .tab-btn:hover {
             color: var(--text-main);
-            background-color: rgba(255, 255, 255, 0.05);
+            background-color: rgba(255, 255, 255, 0.03);
         }
 
         .tab-btn.active {
-            background-color: var(--accent-glow);
             color: #ffffff;
-            box-shadow: 0 0 10px rgba(99, 102, 241, 0.4);
+            background-color: var(--accent-glow);
+            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
         }
 
+        /* Main app grid */
         .app-grid {
             display: grid;
-            grid-template-columns: 1fr;
-            gap: 30px;
+            grid-template-columns: 1.1fr 0.9fr;
+            gap: 24px;
             width: 100%;
         }
 
-        @media (min-width: 768px) {
-            .app-grid {
-                grid-template-columns: 1fr 1fr;
-                align-items: start;
-            }
-        }
-
+        /* Card styles */
         .card {
             background-color: var(--card-bg);
             border: 1px solid var(--border-color);
@@ -161,242 +154,197 @@
             padding: 24px;
             display: flex;
             flex-direction: column;
-            align-items: center;
             gap: 20px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            position: relative;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            transition: border-color 0.3s ease;
         }
 
-        /* Canvas Wrapper & Glowing Effect */
         .canvas-wrapper {
             position: relative;
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            background-color: #000000;
+            border: 1px solid var(--border-color);
             border-radius: 16px;
             overflow: hidden;
-            border: 2px solid var(--border-color);
-            transition: border-color 0.3s ease, box-shadow 0.3s ease;
-            width: 100%;
-            align-self: stretch;
-            aspect-ratio: 16 / 10;
-            background-color: #000000;
-            box-shadow: 0 0 0 transparent;
-        }
-
-        .canvas-wrapper.drawing {
-            border-color: var(--accent-glow);
-            box-shadow: 0 0 20px var(--accent-glow-subtle);
-        }
-
-        /* Floating Canvas Status Badge */
-        .status-badge {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            background: rgba(21, 24, 33, 0.75);
-            backdrop-filter: blur(4px);
-            border: 1px solid var(--border-color);
-            padding: 4px 8px;
-            border-radius: 20px;
-            font-size: 0.7rem;
-            color: var(--text-sub);
-            pointer-events: none;
-            user-select: none;
-            z-index: 5;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-        }
-
-
-        canvas {
-            display: block;
-            cursor: crosshair;
-            touch-action: none;
-            width: 100%;
-            height: 100%;
-        }
-
-        .btn {
-            background: transparent;
-            border: 1px solid var(--border-color);
-            color: var(--text-main);
-            padding: 12px 24px;
-            font-size: 0.95rem;
-            font-family: inherit;
-            font-weight: 600;
-            border-radius: 12px;
-            cursor: pointer;
-            width: 100%;
-            transition: all 0.25s ease;
             display: flex;
             align-items: center;
             justify-content: center;
+            box-shadow: inset 0 4px 20px rgba(0, 0, 0, 0.8);
+            transition: all 0.3s ease;
+        }
+
+        .canvas-wrapper.generating {
+            border-color: var(--accent-glow);
+            box-shadow: 0 0 25px rgba(99, 102, 241, 0.45), inset 0 2px 10px rgba(99, 102, 241, 0.2);
+            animation: pulse-glow 2s infinite ease-in-out;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.005); opacity: 0.95; }
+        }
+
+        #drawingCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            image-rendering: pixelated;
+        }
+
+        .status-badge {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            background-color: rgba(12, 13, 18, 0.85);
+            border: 1px solid var(--border-color);
+            padding: 6px 12px;
+            border-radius: 30px;
+            display: flex;
+            align-items: center;
             gap: 8px;
-        }
-
-        .btn:hover {
-            border-color: var(--text-main);
-            background-color: rgba(255, 255, 255, 0.05);
-        }
-
-        /* Results Display Card */
-        .results-card {
-            align-items: stretch;
-            gap: 16px;
-        }
-
-        .results-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 12px;
-            margin-bottom: 8px;
-        }
-
-        .results-title {
-            font-size: 1.15rem;
+            font-size: 0.75rem;
             font-weight: 600;
-            letter-spacing: -0.2px;
-        }
-
-        .predict-indicator {
-            font-size: 0.85rem;
-            color: var(--text-sub);
-            display: flex;
-            align-items: center;
-            gap: 6px;
+            backdrop-filter: blur(4px);
         }
 
         .predict-dot {
             width: 8px;
             height: 8px;
-            background-color: #10b981;
             border-radius: 50%;
-            display: inline-block;
-            box-shadow: 0 0 8px #10b981;
+            background-color: #10b981; /* Green */
         }
 
         .predict-dot.idle {
-            background-color: #6b7280;
-            box-shadow: none;
+            background-color: #9ca3af; /* Gray */
         }
 
         .predict-dot.loading {
-            background-color: #eab308;
-            box-shadow: 0 0 8px #eab308;
+            background-color: #3b82f6; /* Blue */
+            animation: blink 1s infinite alternate;
         }
 
-        /* Hero Prediction Box */
-        .hero-prediction {
+        @keyframes blink {
+            from { opacity: 0.3; }
+            to { opacity: 1; }
+        }
+
+        /* Settings and configurations styling */
+        .settings-section {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .setting-row {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .setting-label {
+            font-size: 0.8rem;
+            color: var(--text-sub);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        input[type="range"] {
+            flex-grow: 1;
+            accent-color: var(--accent-glow);
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            outline: none;
+            cursor: pointer;
+        }
+
+        .slider-value {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-main);
+            min-width: 25px;
+            text-align: right;
+        }
+
+        /* Buttons */
+        .btn {
+            background-color: #1f2937;
+            border: 1px solid var(--border-color);
+            color: #ffffff;
+            padding: 12px 24px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            border-radius: 12px;
+            cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 12px;
-            flex-wrap: nowrap;
-            height: 72px;
-            padding: 12px;
-            background: rgba(255, 255, 255, 0.015);
-            border: 1px dashed var(--border-color);
-            border-radius: 16px;
-            text-align: center;
-            margin-bottom: 4px;
-            overflow: hidden;
+            gap: 8px;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+
+        .btn:hover {
+            background-color: #374151;
+            border-color: #4b5563;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Target class indicator */
+        .hero-prediction {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(129, 140, 248, 0.02) 100%);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 14px;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            height: 68px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
         }
 
         .hero-label {
-            font-size: 2rem;
+            font-size: 1.6rem;
             font-weight: 800;
-            text-transform: capitalize;
-            background: linear-gradient(135deg, #ffffff 0%, var(--accent-glow) 100%);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
+            color: #ffffff;
             letter-spacing: -0.5px;
         }
 
         .hero-conf {
-            font-size: 1.1rem;
+            font-size: 0.85rem;
             font-weight: 600;
-            color: var(--text-sub);
-        }
-
-        /* Probabilities List (Top 3 Only, no scrollbar needed) */
-        .probs-list {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            transition: opacity 0.25s ease;
-        }
-
-        .probs-list.awaiting {
-            opacity: 0.25;
-        }
-
-        .prob-row {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-        }
-
-        .digit-label {
-            font-size: 0.95rem;
-            font-weight: 600;
-            width: 100px;
-            text-align: left;
-            text-transform: capitalize;
-            color: var(--text-sub);
-            transition: color 0.2s ease;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .digit-label.active {
             color: var(--accent-glow);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
-        .progress-bar-bg {
-            flex-grow: 1;
-            height: 10px;
-            background-color: #1a1e2a;
-            border-radius: 5px;
-            overflow: hidden;
-            border: 1px solid rgba(255, 255, 255, 0.03);
-        }
-
-        .progress-bar-fill {
-            height: 100%;
-            width: 0%;
-            background-color: var(--bar-color);
-            border-radius: 5px;
-            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s ease;
-        }
-
-        .prob-row.active .progress-bar-fill {
-            background-color: var(--bar-highlight);
-            box-shadow: 0 0 10px rgba(129, 140, 248, 0.3);
-        }
-
-        .value-label {
-            font-size: 0.9rem;
-            font-weight: 600;
-            font-family: monospace;
-            width: 48px;
-            text-align: right;
-            color: var(--text-sub);
-        }
-
-        .value-label.active {
-            color: var(--text-main);
-        }
-
-        /* Category Badges Grid Section (Collapsible details) */
+        /* Collapsible supported categories details layout */
         details.categories-section {
-            border-top: 1px solid var(--border-color);
-            padding-top: 12px;
-            margin-top: 8px;
-            width: 100%;
+            border: 1px solid var(--border-color);
+            background: rgba(255, 255, 255, 0.01);
+            border-radius: 12px;
+            padding: 12px;
+            transition: all 0.3s ease;
+        }
+
+        details.categories-section[open] {
+            border-color: rgba(99, 102, 241, 0.3);
+            background: rgba(99, 102, 241, 0.02);
         }
 
         summary.categories-title {
@@ -405,13 +353,18 @@
             color: var(--text-sub);
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            margin-bottom: 8px;
+            margin-bottom: 0px;
             cursor: pointer;
             user-select: none;
             list-style: none; /* Hide default arrow */
             display: flex;
             align-items: center;
             justify-content: space-between;
+            outline: none;
+        }
+
+        details[open] summary.categories-title {
+            margin-bottom: 12px;
         }
 
         summary.categories-title::-webkit-details-marker {
@@ -433,40 +386,100 @@
             display: flex;
             flex-wrap: wrap;
             gap: 6px;
-            animation: slideDown 0.25s ease-out;
+            max-height: 200px;
+            overflow-y: auto;
+            padding-right: 4px;
         }
 
-        @keyframes slideDown {
-            from { opacity: 0; transform: translateY(-4px); }
-            to { opacity: 1; transform: translateY(0); }
+        /* Category Grid Scrollbar styling */
+        .categories-grid::-webkit-scrollbar {
+            width: 4px;
+        }
+        .categories-grid::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.01);
+        }
+        .categories-grid::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 2px;
         }
 
         .category-badge {
             font-size: 0.7rem;
-            font-weight: 500;
+            font-weight: 600;
             color: var(--text-sub);
-            background: rgba(255, 255, 255, 0.01);
+            background: rgba(255, 255, 255, 0.03);
             border: 1px solid var(--border-color);
-            padding: 4px 10px;
+            padding: 5px 12px;
             border-radius: 20px;
             text-transform: capitalize;
-            transition: all 0.25s ease;
-            cursor: default;
+            transition: all 0.2s ease;
+            cursor: pointer;
             user-select: none;
+        }
+
+        .category-badge:hover {
+            color: var(--text-main);
+            border-color: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.06);
         }
 
         .category-badge.active {
             color: #ffffff;
             background-color: var(--accent-glow);
             border-color: var(--accent-glow);
-            box-shadow: 0 0 8px rgba(99, 102, 241, 0.3);
-            transform: scale(1.03);
+            box-shadow: 0 0 10px rgba(99, 102, 241, 0.4);
+            transform: translateY(-1px);
         }
 
-        .category-badge.top5 {
-            color: var(--text-main);
-            border-color: rgba(99, 102, 241, 0.35);
-            background: rgba(99, 102, 241, 0.05);
+        /* Progress Bar */
+        .progress-bar-bg {
+            height: 8px;
+            background-color: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+            overflow: hidden;
+            width: 100%;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--bar-color), var(--bar-highlight));
+            border-radius: 4px;
+            width: 0%;
+            transition: width 0.15s ease-out;
+        }
+
+        /* Collapsible Developer Console */
+        .debug-panel {
+            background-color: #0d0e15;
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 16px;
+            width: 100%;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        #systemLogsBox {
+            margin-top: 12px;
+            padding: 10px;
+            border-radius: 8px;
+            background: #050608;
+            border: 1px solid var(--border-color);
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.75rem;
+            color: #a1a1aa;
+            max-height: 140px;
+            overflow-y: auto;
+            text-align: left;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        #systemLogsBox::-webkit-scrollbar {
+            width: 4px;
+        }
+        #systemLogsBox::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 2px;
         }
 
         footer {
@@ -476,75 +489,33 @@
             color: #4b5563;
         }
 
-        /* Mobile Viewport Optimization to fit on a single screen without scrolling */
+        /* Mobile Viewport Optimization */
         @media (max-width: 767px) {
             body {
-                padding: 8px;
-                justify-content: flex-start;
+                padding: 10px;
                 min-height: auto;
             }
             .container {
-                gap: 8px;
+                gap: 15px;
             }
             header h1 {
-                font-size: 1.5rem;
-                margin-bottom: 2px;
-            }
-            header p {
-                display: none; /* Hide subtitle to save major vertical space */
-            }
-            .selector-container {
-                padding: 4px 10px;
-                margin-top: 2px;
+                font-size: 1.8rem;
             }
             .app-grid {
-                gap: 8px; /* Collapse gap between canvas card and analysis card */
+                grid-template-columns: 1fr;
+                gap: 16px;
             }
             .card {
-                padding: 10px;
-                gap: 8px;
-                border-radius: 12px;
+                padding: 16px;
+                gap: 16px;
             }
             .canvas-wrapper {
-                aspect-ratio: 16 / 10;
-                border-radius: 10px;
-            }
-            .btn {
-                padding: 8px 16px;
-                font-size: 0.8rem;
-                border-radius: 8px;
-            }
-            .hero-prediction {
-                gap: 10px;
-                padding: 6px 12px;
-                border-radius: 10px;
-                margin-bottom: 0px;
-                height: 52px;
-                flex-wrap: nowrap;
-            }
-            .hero-label {
-                font-size: 1.4rem;
-            }
-            .hero-conf {
-                font-size: 0.95rem;
-            }
-            .prob-row {
-                gap: 8px;
-            }
-            .digit-label {
-                font-size: 0.8rem;
-                width: 75px;
-            }
-            .value-label {
-                font-size: 0.75rem;
-                width: 35px;
-            }
-            .progress-bar-bg {
-                height: 6px;
+                aspect-ratio: 1 / 1;
+                max-width: 320px;
+                margin: 0 auto;
             }
             footer {
-                margin-top: 12px;
-                font-size: 0.75rem;
+                margin-top: 16px;
             }
         }
     </style>
@@ -556,7 +527,7 @@
         <header>
             <!-- GitHub Link Button -->
             <a href="https://github.com/magikerwin/rust-drawing-classifier-web" target="_blank" rel="noopener noreferrer"
-                style="position: absolute; top: 0; right: 0; display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; background: #151821; border: 1px solid var(--border-color); color: var(--text-sub); transition: all 0.2s ease; text-decoration: none;"
+                style="position: absolute; top: 15px; right: 15px; display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; background: #151821; border: 1px solid var(--border-color); color: var(--text-sub); transition: all 0.2s ease; text-decoration: none;"
                 onmouseover="this.style.borderColor='var(--accent-glow)'; this.style.color='var(--text-main)'; this.style.boxShadow='0 0 10px rgba(129,140,248,0.2)'"
                 onmouseout="this.style.borderColor='var(--border-color)'; this.style.color='var(--text-sub)'; this.style.boxShadow='none'">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -566,11 +537,21 @@
                 </svg>
             </a>
 
-            <h1 id="appTitle">Digit Classifier</h1>
-            <p id="appDesc">Draw a digit in the box below to run real-time inference</p>
+            <h1 id="appTitle">Drawing Generator</h1>
+            <p id="appDesc">Select a category and trigger the diffusion model to generate drawings</p>
 
+            <!-- Mode Selector Switcher -->
+            <div class="selector-container" id="modeSelector">
+                <span class="selector-label">Inference Mode:</span>
+                <div class="tabs">
+                    <button class="tab-btn active" id="modeServer">Server (SSE)</button>
+                    <button class="tab-btn" id="modeWasm">WASM (Local)</button>
+                </div>
+            </div>
+
+            <!-- WASM Dataset Selection Tabs (only visible in WASM mode) -->
             <div id="datasetSelector" class="selector-container" style="display: none;">
-                <span class="selector-label">Model:</span>
+                <span class="selector-label">Dataset:</span>
                 <div class="tabs">
                     <button class="tab-btn active" id="tabMnist" data-dataset="mnist">MNIST</button>
                     <button class="tab-btn" id="tabEmnist" data-dataset="emnist">EMNIST</button>
@@ -580,64 +561,66 @@
         </header>
 
         <div class="app-grid">
-            <!-- Interactive Drawing Pad -->
+            <!-- Canvas / Generation Viewer Card -->
             <div class="card">
                 <div class="canvas-wrapper" id="canvasWrapper">
-                    <canvas id="drawingCanvas" width="320" height="200"></canvas>
+                    <canvas id="drawingCanvas" width="280" height="280"></canvas>
                     <div class="status-badge">
                         <span class="predict-dot idle" id="statusDot"></span>
                         <span id="statusText">Ready</span>
                     </div>
                 </div>
-                <button class="btn" id="clearBtn">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path
-                            d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6" />
-                    </svg>
-                    Clear Drawing
-                </button>
+                
+                <div style="display: flex; gap: 12px; width: 100%;">
+                    <button class="btn" id="generateBtn" style="flex-grow: 2; background-color: var(--accent-glow); border-color: var(--accent-glow); box-shadow: 0 4px 15px rgba(99, 102, 241, 0.35);">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                        </svg>
+                        Generate Drawing
+                    </button>
+                    <button class="btn" id="clearBtn" style="flex-grow: 1;">
+                        Reset
+                    </button>
+                </div>
             </div>
 
-
-            <!-- Real-Time Metrics & Outcomes -->
-            <div class="card results-card">
-
-                <!-- Hero Prediction Display -->
+            <!-- Settings, Target Class and Progress Card -->
+            <div class="card">
+                <!-- Selected Class Hero -->
                 <div class="hero-prediction">
-                    <div class="hero-label" id="heroLabel">Awaiting Drawing</div>
-                    <div class="hero-conf" id="heroConf" style="visibility: hidden;">00.0%</div>
+                    <div class="hero-label" id="heroLabel">Awaiting Selection</div>
+                    <div class="hero-conf" id="heroConf" style="visibility: hidden;">Target Class</div>
                 </div>
 
-                <!-- Top 3 probabilities list -->
-                <div class="probs-list awaiting" id="probsList">
-                    <div class="prob-row" id="probRow-0">
-                        <div class="digit-label" id="probLabel-0">—</div>
-                        <div class="progress-bar-bg">
-                            <div class="progress-bar-fill" id="probFill-0" style="width: 0%"></div>
+                <!-- Parameters Settings -->
+                <div class="settings-section">
+                    <div class="setting-row">
+                        <label class="setting-label" for="stepsSlider">
+                            <span>DDIM Sampling Steps</span>
+                            <span class="slider-value" id="stepsValue">20</span>
+                        </label>
+                        <div class="slider-container">
+                            <input type="range" id="stepsSlider" min="5" max="50" value="20" step="5">
                         </div>
-                        <div class="value-label" id="probValue-0">0.0%</div>
                     </div>
-                    <div class="prob-row" id="probRow-1">
-                        <div class="digit-label" id="probLabel-1">—</div>
-                        <div class="progress-bar-bg">
-                            <div class="progress-bar-fill" id="probFill-1" style="width: 0%"></div>
+
+                    <!-- Progress Bar (Visible during generation) -->
+                    <div id="progressContainer" style="display: none;">
+                        <div class="setting-label" style="margin-bottom: 6px;">
+                            <span>Denoising Process</span>
+                            <span id="progressText" style="color: var(--accent-glow);">0% (Step 0/20)</span>
                         </div>
-                        <div class="value-label" id="probValue-1">0.0%</div>
-                    </div>
-                    <div class="prob-row" id="probRow-2">
-                        <div class="digit-label" id="probLabel-2">—</div>
                         <div class="progress-bar-bg">
-                            <div class="progress-bar-fill" id="probFill-2" style="width: 0%"></div>
+                            <div class="progress-bar-fill" id="progressBarFill"></div>
                         </div>
-                        <div class="value-label" id="probValue-2">0.0%</div>
                     </div>
                 </div>
 
-                <!-- Supported classes list (Collapsible details) -->
-                <details class="categories-section">
-                    <summary class="categories-title">Supported Categories</summary>
+                <!-- Collapsible Categories section -->
+                <details class="categories-section" open>
+                    <summary class="categories-title">Select Category</summary>
                     <div class="categories-grid" id="categoriesGrid">
-                        <!-- Pill-shaped badges go here -->
+                        <!-- badges loaded dynamically -->
                     </div>
                 </details>
             </div>
@@ -645,39 +628,26 @@
 
         <!-- Collapsible Developer Console -->
         <div class="card debug-panel" id="debugPanel" style="margin-top: 16px; display: none;">
-            <div
-                style="font-weight: 600; font-size: 1rem; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+            <div style="font-weight: 600; font-size: 1rem; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
                 <span>Developer Console</span>
                 <span style="font-size: 0.75rem; color: var(--text-sub);" id="debugStatusLabel">Model Version: loading...</span>
             </div>
 
             <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
-                <!-- Control Toggles -->
-                <div style="display: flex; flex-direction: column; gap: 8px;">
-                    <label
-                        style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; cursor: pointer; user-select: none; color: var(--text-main);">
-
-                        <input type="checkbox" id="showPreviewCheck" checked
-                            style="cursor: pointer; width: 14px; height: 14px;">
-                        Show 28x28 Input Feed
-                    </label>
-                </div>
-
                 <!-- Live Preview Feed (WASM input preview) -->
                 <div id="previewContainer" style="display: flex; align-items: center; gap: 12px;">
                     <canvas id="previewCanvas" width="28" height="28"
                         style="border: 1px solid var(--border-color); background: #000; border-radius: 4px; image-rendering: pixelated; width: 56px; height: 56px;"></canvas>
                     <div style="font-size: 0.75rem; color: var(--text-sub); line-height: 1.35;">
-                        <strong>Scaled Model Input</strong><br>
-                        Centered 28x28 Grayscale<br>
-                        (QuickDraw expects [0.0..1.0])
+                        <strong>Latent Image (28x28)</strong><br>
+                        Raw matrix mapping<br>
+                        Values scale in [-1.0..1.0]
                     </div>
                 </div>
             </div>
 
-            <!-- Live System Logs/Errors Terminal -->
-            <div id="systemLogsBox"
-                style="margin-top: 12px; padding: 10px; border-radius: 6px; background: #08090d; border: 1px solid var(--border-color); font-family: monospace; font-size: 0.75rem; color: var(--text-sub); max-height: 120px; overflow-y: auto; text-align: left; white-space: pre-wrap; word-wrap: break-word;">
+            <!-- System Logs Box -->
+            <div id="systemLogsBox">
                 System status: Operational.
             </div>
         </div>
@@ -689,22 +659,32 @@
         </footer>
     </div>
 
-
     <script>
         const canvas = document.getElementById('drawingCanvas');
         const ctx = canvas.getContext('2d');
         const wrapper = document.getElementById('canvasWrapper');
+        
+        const generateBtn = document.getElementById('generateBtn');
         const clearBtn = document.getElementById('clearBtn');
         const statusDot = document.getElementById('statusDot');
         const statusText = document.getElementById('statusText');
-        const probsList = document.getElementById('probsList');
-
+        
+        const modeServer = document.getElementById('modeServer');
+        const modeWasm = document.getElementById('modeWasm');
         const datasetSelector = document.getElementById('datasetSelector');
+        
         const tabMnist = document.getElementById('tabMnist');
         const tabEmnist = document.getElementById('tabEmnist');
         const tabQuickdraw = document.getElementById('tabQuickdraw');
 
-        // Offline client-side class categories configurations
+        const stepsSlider = document.getElementById('stepsSlider');
+        const stepsValue = document.getElementById('stepsValue');
+        
+        const progressContainer = document.getElementById('progressContainer');
+        const progressText = document.getElementById('progressText');
+        const progressBarFill = document.getElementById('progressBarFill');
+
+        // Lists of classes supported by different datasets
         const mnistClasses = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
         const emnistClasses = [
             'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
@@ -716,39 +696,54 @@
             "clock", "envelope", "toothbrush", "house", "car", "smiley face", "pants", "t-shirt", "apple"
         ];
 
-        // Current app configuration state (either loaded from Axum backend or selected locally in WASM mode)
+        // System state
         let appConfig = {
             dataset: 'mnist',
             classes: mnistClasses
         };
 
-        // Client-side execution mode ('server' or 'wasm')
-        let runMode = 'server';
+        let runMode = 'server'; // 'server' or 'wasm'
+        let serverAvailable = false;
+        let selectedClassIndex = 0;
+        let isGenerating = false;
+        
         let wasmModule = null;
-        let predictor = null;
+        let weightsCache = {};
+        let activeEventSource = null;
+        let wasmLoadError = null;
+        let expectedVersion = null;
 
-        // Developer Console Panel elements
+        // Developer Panel elements
         const toggleDebugLink = document.getElementById('toggleDebugLink');
         const debugPanel = document.getElementById('debugPanel');
-        const showPreviewCheck = document.getElementById('showPreviewCheck');
         const previewCanvas = document.getElementById('previewCanvas');
         const previewCtx = previewCanvas.getContext('2d');
         const systemLogsBox = document.getElementById('systemLogsBox');
         const debugStatusLabel = document.getElementById('debugStatusLabel');
 
-        let wasmLoadError = null;
+        // Step Slider Update
+        stepsSlider.addEventListener('input', () => {
+            stepsValue.textContent = stepsSlider.value;
+        });
 
-        let expectedVersion = null;
+        // Initialize Canvas color
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        previewCtx.fillStyle = '#000000';
+        previewCtx.fillRect(0, 0, 28, 28);
+
+        // Versioning check
+        syncModelVersionLabel();
 
         async function syncModelVersionLabel() {
             try {
                 const response = await fetch('./weights-version.txt', { cache: 'no-store' });
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
                 expectedVersion = (await response.text()).trim();
                 updateVersionLabel();
             } catch (err) {
-                console.warn('Failed to load model version label:', err);
+                console.warn('Failed to load version label:', err);
                 expectedVersion = null;
                 updateVersionLabel();
             }
@@ -766,7 +761,7 @@
                     debugStatusLabel.textContent = `Model Version: ${serverVersion} (Server)`;
                 }
             } else if (runMode === 'wasm') {
-                if (!predictor) {
+                if (!wasmModule) {
                     debugStatusLabel.textContent = `Model Version: loading... (Expected: ${expectedStr})`;
                     return;
                 }
@@ -784,18 +779,17 @@
             }
         }
 
-
-        // Helper to write to debug console terminal
+        // Helper to write to logs terminal
         function logToSystem(message, isError = false) {
             const time = new Date().toLocaleTimeString();
-            const color = isError ? '#f87171' : 'var(--text-sub)';
+            const color = isError ? '#f87171' : '#9ca3af';
             const boldStyle = isError ? 'font-weight: bold;' : '';
             const line = `<div style="color: ${color}; ${boldStyle}">[${time}] ${message}</div>`;
             systemLogsBox.innerHTML += line;
             systemLogsBox.scrollTop = systemLogsBox.scrollHeight;
         }
 
-        // Toggle Collapsible Developer Console Link
+        // Toggle Debug Console View
         toggleDebugLink.addEventListener('click', (e) => {
             e.preventDefault();
             const isOpen = debugPanel.style.display === 'block';
@@ -804,531 +798,366 @@
             logToSystem(`Developer Console ${isOpen ? 'hidden' : 'visible'}.`);
         });
 
-
-        // Drawing state
-        let isDrawing = false;
-        let hasDrawn = false;
-
-        // Configure Canvas Context
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        // ctx.lineWidth is configured dynamically in initUI() based on active dataset
-        ctx.strokeStyle = '#ffffff';
-
-        // Clear canvas to black
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-
-        syncModelVersionLabel();
-
-        // Initial page configurations loading
+        // Initialize state configuration and auto-detect server
         logToSystem('Connecting to Axum backend server...');
         fetch('/api/config')
             .then(res => {
-                if (!res.ok) throw new Error('Not server mode');
+                if (!res.ok) throw new Error();
                 return res.json();
             })
             .then(config => {
-                // Entered Server-Backed Mode
-                runMode = 'server';
+                serverAvailable = true;
                 appConfig = config;
-                logToSystem(`Server-Backed Mode initialized. Dataset: ${config.dataset}.`);
-                initUI();
-                updateVersionLabel();
+                logToSystem(`Axum backend detected. Current dataset: ${config.dataset}.`);
+                setMode('server');
             })
             .catch(() => {
-                // Failed to fetch backend config: Entered Offline WASM Mode
-                runMode = 'wasm';
-                datasetSelector.style.display = 'flex';
-                setupWasmTabs();
+                serverAvailable = false;
+                logToSystem('Axum server offline. Fallback to client-side WASM mode.');
+                modeServer.disabled = true;
+                modeServer.style.opacity = '0.4';
+                modeServer.style.cursor = 'not-allowed';
+                setMode('wasm');
+            });
 
-                // Default to MNIST and load WASM
+        // Event listener for Mode Switcher
+        modeServer.addEventListener('click', () => setMode('server'));
+        modeWasm.addEventListener('click', () => setMode('wasm'));
+
+        function setMode(mode) {
+            if (isGenerating) return;
+            if (mode === 'server' && !serverAvailable) return;
+
+            runMode = mode;
+            modeServer.classList.toggle('active', mode === 'server');
+            modeWasm.classList.toggle('active', mode === 'wasm');
+
+            if (mode === 'server') {
+                datasetSelector.style.display = 'none';
+                logToSystem('Switched to Server-side generation mode.');
+                // Re-fetch config to ensure synchronization
+                fetch('/api/config')
+                    .then(res => res.json())
+                    .then(config => {
+                        appConfig = config;
+                        selectedClassIndex = 0;
+                        initUI();
+                        updateVersionLabel();
+                    });
+            } else {
+                datasetSelector.style.display = 'flex';
+                logToSystem('Switched to client-side WebAssembly generation mode.');
+                
+                // Select active tab
+                const activeTab = document.querySelector('#datasetSelector .tab-btn.active');
+                const dataset = activeTab ? activeTab.getAttribute('data-dataset') : 'mnist';
+                
                 appConfig = {
-                    dataset: 'mnist',
-                    classes: mnistClasses
+                    dataset: dataset,
+                    classes: dataset === 'quickdraw' ? quickdrawClasses : (dataset === 'emnist' ? emnistClasses : mnistClasses)
                 };
-                logToSystem('Backend server offline. Fallback to offline WebAssembly mode.');
+                selectedClassIndex = 0;
+                initUI();
+                updateVersionLabel();
+                loadWasmPredictor();
+            }
+        }
+
+        // Set up tabs for WASM Mode dataset selection
+        [tabMnist, tabEmnist, tabQuickdraw].forEach(tab => {
+            if (!tab) return;
+            tab.addEventListener('click', (e) => {
+                if (isGenerating) return;
+                const dataset = e.currentTarget.getAttribute('data-dataset');
+                if (appConfig.dataset === dataset) return;
+
+                tabMnist.classList.toggle('active', dataset === 'mnist');
+                tabEmnist.classList.toggle('active', dataset === 'emnist');
+                tabQuickdraw.classList.toggle('active', dataset === 'quickdraw');
+
+                appConfig = {
+                    dataset: dataset,
+                    classes: dataset === 'quickdraw' ? quickdrawClasses : (dataset === 'emnist' ? emnistClasses : mnistClasses)
+                };
+                
+                selectedClassIndex = 0;
+                logToSystem(`Switched WASM dataset to: ${dataset}`);
                 initUI();
                 updateVersionLabel();
                 loadWasmPredictor();
             });
+        });
 
         function initUI() {
-            const isQuickdraw = appConfig.dataset === 'quickdraw';
-            const isEmnist = appConfig.dataset === 'emnist';
+            // Update Title & Desc Labels
+            const isQD = appConfig.dataset === 'quickdraw';
+            const isEM = appConfig.dataset === 'emnist';
+            const modeText = runMode === 'wasm' ? ' (WASM)' : '';
 
-            // Dynamically scale stroke width relative to canvas height
-            const strokeFactor = isQuickdraw ? 0.05 : 0.09;
-            ctx.lineWidth = canvas.height * strokeFactor;
+            document.title = isQD ? `Quick Draw Doodle Generator${modeText}` : (isEM ? `EMNIST Letters Generator${modeText}` : `MNIST Digit Generator${modeText}`);
+            document.getElementById('appTitle').innerText = isQD ? `Quick Draw Doodle Generator${modeText}` : (isEM ? `EMNIST Letters Generator${modeText}` : `MNIST Digit Generator${modeText}`);
+            document.getElementById('appDesc').innerText = isQD 
+                ? 'Select a doodle category below to generate its drawing using a diffusion model' 
+                : (isEM ? 'Select a character (A-Z) below to generate its drawing using a diffusion model' : 'Select a digit (0-9) below to generate its drawing using a diffusion model');
 
-            // Update Title & Heading labels
-            const modeLabel = runMode === 'wasm' ? ' (WASM)' : '';
-            document.title = isQuickdraw
-                ? `Quick Draw Doodle Classifier${modeLabel}`
-                : (isEmnist ? `EMNIST Letters Classifier${modeLabel}` : `MNIST Digit Classifier${modeLabel}`);
-
-            document.getElementById('appTitle').innerText = isQuickdraw
-                ? `Quick Draw Doodle Classifier${modeLabel}`
-                : (isEmnist ? `EMNIST Letters Classifier${modeLabel}` : `MNIST Digit Classifier${modeLabel}`);
-
-            document.getElementById('appDesc').innerText = isQuickdraw
-                ? 'Draw one of the 25 doodle categories in the box below to run real-time inference'
-                : (isEmnist
-                    ? 'Draw a capital letter (A–Z) in the box below to run real-time inference'
-                    : 'Draw a digit in the box below to run real-time inference');
-
-            // Populate all class badges once
+            // Populate Category selection badges grid
             let badgesHTML = '';
             appConfig.classes.forEach((className, i) => {
-                badgesHTML += `<div class="category-badge" id="badge-${i}">${className}</div>`;
+                const active = i === selectedClassIndex ? ' active' : '';
+                badgesHTML += `<div class="category-badge${active}" id="badge-${i}" onclick="selectClass(${i})">${className}</div>`;
             });
             document.getElementById('categoriesGrid').innerHTML = badgesHTML;
 
-            // Reset canvas & results
+            // Reset canvas visualization
             clearCanvas();
+            updateSelectedLabel();
         }
 
-        // Set up tabs for WASM Mode dataset selection
-        function setupWasmTabs() {
-            [tabMnist, tabEmnist, tabQuickdraw].forEach(tab => {
-                if (!tab) return;
-                tab.addEventListener('click', (e) => {
-                    const dataset = e.currentTarget.getAttribute('data-dataset');
-                    if (appConfig.dataset === dataset) return;
+        function selectClass(index) {
+            if (isGenerating) return;
 
-                    // Toggle active tab style
-                    tabMnist.classList.toggle('active', dataset === 'mnist');
-                    tabEmnist.classList.toggle('active', dataset === 'emnist');
-                    tabQuickdraw.classList.toggle('active', dataset === 'quickdraw');
+            const oldBadge = document.getElementById(`badge-${selectedClassIndex}`);
+            if (oldBadge) oldBadge.classList.remove('active');
 
-                    // Update configuration
-                    appConfig = {
-                        dataset: dataset,
-                        classes: dataset === 'quickdraw'
-                            ? quickdrawClasses
-                            : (dataset === 'emnist' ? emnistClasses : mnistClasses)
-                    };
-                    logToSystem(`Switched dataset to ${dataset}. Reloading model...`);
-                    initUI();
-                    loadWasmPredictor();
-                });
-            });
+            selectedClassIndex = index;
+
+            const newBadge = document.getElementById(`badge-${selectedClassIndex}`);
+            if (newBadge) newBadge.classList.add('active');
+
+            updateSelectedLabel();
+            logToSystem(`Selected target category: "${appConfig.classes[index]}"`);
         }
 
-        // Loads/Switches the WASM Predictors dynamically (only fetches when necessary)
+        function updateSelectedLabel() {
+            const className = appConfig.classes[selectedClassIndex];
+            document.getElementById('heroLabel').innerText = className;
+            document.getElementById('heroConf').innerText = 'Selected Target Class';
+            document.getElementById('heroConf').style.visibility = 'visible';
+        }
+
+        // Preload and Cache WASM engines & model weights files
         async function loadWasmPredictor() {
-            predictor = null;
             statusDot.className = 'predict-dot loading';
             statusText.innerText = 'Loading WASM model...';
 
             try {
                 if (!wasmModule) {
                     logToSystem('Loading WebAssembly engine assets...');
-                    // Dynamically import WASM module with a cache-busting query parameter to force browser updates
                     wasmModule = await import(`./pkg/mnist_web.js?v=${Date.now()}`);
                     await wasmModule.default(`./pkg/mnist_web_bg.wasm?v=${Date.now()}`);
                     logToSystem('WebAssembly engine loaded successfully.');
                 }
 
                 const dataset = appConfig.dataset;
-                logToSystem(`Fetching model weights for ${dataset}...`);
+                let weightsBytes = weightsCache[dataset];
                 
-                let weightsBytes = null;
-                const localUrl = `./${dataset}-model.bin?v=${expectedVersion || Date.now()}`;
-                
-                try {
+                if (!weightsBytes) {
+                    logToSystem(`Downloading weights file for ${dataset}...`);
+                    const localUrl = `./${dataset}-model.bin?v=${expectedVersion || Date.now()}`;
                     const response = await fetch(localUrl);
-                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
                     weightsBytes = new Uint8Array(await response.arrayBuffer());
-                    logToSystem(`Model weights loaded successfully.`);
-                } catch (e) {
-                    throw new Error(`Failed to load model weights: ${e.message}`);
-                }
-
-                logToSystem(`Initializing predictor weights for ${dataset}...`);
-                if (dataset === 'quickdraw') {
-                    predictor = new wasmModule.QuickdrawPredictor(weightsBytes);
-                } else if (dataset === 'emnist') {
-                    predictor = new wasmModule.EmnistPredictor(weightsBytes);
-                } else {
-                    predictor = new wasmModule.MnistPredictor(weightsBytes);
+                    weightsCache[dataset] = weightsBytes;
+                    logToSystem(`Weights file for ${dataset} successfully loaded and cached.`);
                 }
 
                 wasmLoadError = null;
-                logToSystem(`Predictor weights initialized successfully. Ready for inference.`);
                 statusDot.className = 'predict-dot idle';
                 statusText.innerText = 'Ready';
                 updateVersionLabel();
             } catch (err) {
-                console.error('Failed to load WASM predictor:', err);
+                console.error('Failed to load WASM predictor weights:', err);
                 wasmLoadError = err.message || err.toString();
                 logToSystem(`WASM initialization failed: ${wasmLoadError}`, true);
-
-                // Auto open the developer console if it is closed so the user sees the error
+                
                 debugPanel.style.display = 'block';
                 toggleDebugLink.innerText = 'Close Developer Console';
-
-                statusText.innerText = 'WASM load failed!';
+                statusText.innerText = 'WASM Load Failed';
                 statusDot.className = 'predict-dot idle';
             }
         }
 
+        // Draw 784-pixel array onto canvases
+        function renderPixels(pixels) {
+            if (!pixels || pixels.length !== 784) return;
+            
+            // Write grayscale values to the offscreen preview canvas
+            const imgData = previewCtx.createImageData(28, 28);
+            const data = imgData.data;
+            for (let i = 0; i < 784; i++) {
+                const val = pixels[i];
+                const idx = i * 4;
+                data[idx] = val;     // Red
+                data[idx + 1] = val; // Green
+                data[idx + 2] = val; // Blue
+                data[idx + 3] = 255; // Alpha
+            }
+            previewCtx.putImageData(imgData, 0, 0);
 
-        // Clear Drawing Pad & reset results
-        function clearCanvas() {
+            // Redraw scaled crisp image centered on the main canvas
             ctx.fillStyle = '#000000';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            hasDrawn = false;
 
-            // Reset prediction display
-            document.getElementById('heroLabel').innerText = "Awaiting Drawing";
-            const heroConf = document.getElementById('heroConf');
-            heroConf.style.visibility = "hidden";
-            heroConf.innerText = "00.0%";
+            ctx.imageSmoothingEnabled = false;
+            ctx.msImageSmoothingEnabled = false;
+            
+            const size = Math.min(canvas.width, canvas.height);
+            const x = (canvas.width - size) / 2;
+            const y = (canvas.height - size) / 2;
+            ctx.drawImage(previewCanvas, x, y, size, size);
+        }
 
-            const probsList = document.getElementById('probsList');
-            probsList.classList.add('awaiting');
+        function updateProgress(step, totalSteps) {
+            const pct = Math.round((step / totalSteps) * 100);
+            progressBarFill.style.width = `${pct}%`;
+            progressText.innerText = `${pct}% (Step ${step}/${totalSteps})`;
+        }
 
-            for (let r = 0; r < 3; r++) {
-                const rowEl = document.getElementById(`probRow-${r}`);
-                const labelEl = document.getElementById(`probLabel-${r}`);
-                const fillEl = document.getElementById(`probFill-${r}`);
-                const valueEl = document.getElementById(`probValue-${r}`);
+        // Start generation action
+        generateBtn.addEventListener('click', startGeneration);
+        clearBtn.addEventListener('click', clearCanvas);
 
-                if (rowEl && labelEl && fillEl && valueEl) {
-                    labelEl.innerText = "—";
-                    fillEl.style.width = "0%";
-                    valueEl.innerText = "0.0%";
-                    rowEl.className = 'prob-row';
-                    labelEl.className = 'digit-label';
-                    valueEl.className = 'value-label';
-                }
-            }
+        async function startGeneration() {
+            if (isGenerating) return;
 
-            // Reset badges
-            appConfig.classes.forEach((_, i) => {
-                const badge = document.getElementById(`badge-${i}`);
-                if (badge) badge.className = 'category-badge';
-            });
+            const steps = parseInt(stepsSlider.value);
+            const classId = selectedClassIndex;
 
-            // Clear debug preview canvas to black
+            isGenerating = true;
+            generateBtn.disabled = true;
+            generateBtn.innerText = 'Generating...';
+            clearBtn.disabled = true;
+            wrapper.classList.add('generating');
+            
+            progressContainer.style.display = 'block';
+            progressBarFill.style.width = '0%';
+            progressText.innerText = `0% (Step 0/${steps})`;
+
+            // Set canvas to complete black initially
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
             previewCtx.fillStyle = '#000000';
             previewCtx.fillRect(0, 0, 28, 28);
 
-            if (runMode === 'wasm' && !predictor) {
+            const startTime = performance.now();
+            logToSystem(`Triggering generation of "${appConfig.classes[classId]}" using ${steps} steps [Mode: ${runMode.toUpperCase()}]`);
+
+            if (runMode === 'server') {
                 statusDot.className = 'predict-dot loading';
-                statusText.innerText = 'Loading WASM model...';
-            } else {
-                statusDot.className = 'predict-dot idle';
-                statusText.innerText = 'Ready';
-            }
-        }
+                statusText.innerText = 'Server generating...';
 
+                const sseUrl = `/api/generate?class_id=${classId}&steps=${steps}`;
+                activeEventSource = new EventSource(sseUrl);
 
-        // Coordinate scaling to resolve responsive scaling issues on retina/mobile
-        function getCoordinates(e) {
-            const rect = canvas.getBoundingClientRect();
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-
-            return {
-                x: (clientX - rect.left) * scaleX,
-                y: (clientY - rect.top) * scaleY
-            };
-        }
-
-        // Drawing Event Handlers
-        function startDrawing(e) {
-            if (runMode === 'wasm' && !predictor) return; // Wait for WASM
-
-            isDrawing = true;
-            hasDrawn = true;
-            wrapper.classList.add('drawing');
-            const coords = getCoordinates(e);
-            ctx.beginPath();
-            ctx.moveTo(coords.x, coords.y);
-        }
-
-        function draw(e) {
-            if (!isDrawing) return;
-            const coords = getCoordinates(e);
-            ctx.lineTo(coords.x, coords.y);
-            ctx.stroke();
-
-            // Real-time analysis triggers
-            if (runMode === 'wasm' && predictor) {
-                statusDot.className = 'predict-dot';
-                statusText.innerText = 'Analyzing...';
-                runOfflineInference();
-            }
-        }
-
-        function stopDrawing() {
-            if (!isDrawing) return;
-            isDrawing = false;
-            wrapper.classList.remove('drawing');
-
-            if (hasDrawn) {
-                if (runMode === 'server') {
-                    statusDot.className = 'predict-dot';
-                    statusText.innerText = 'Analyzing...';
-                    sendImageToServer();
-                } else if (predictor) {
-                    runOfflineInference();
-                }
-            }
-        }
-
-
-
-        // Extract canvas drawing pixels scaled down to 28x28 grayscale, centered and cropped
-        function getScaledGrayscalePixels() {
-            const width = canvas.width;
-            const height = canvas.height;
-            const ctx2d = ctx;
-
-            // 1. Get raw pixel data from main canvas to calculate bounding box
-            const mainImgData = ctx2d.getImageData(0, 0, width, height);
-            const data = mainImgData.data;
-
-            // Find bounding box of the drawing (non-black pixels)
-            let minX = width, maxX = 0, minY = height, maxY = 0;
-            let hasDrawing = false;
-
-            for (let y = 0; y < height; y++) {
-                for (let x = 0; x < width; x++) {
-                    const idx = (y * width + x) * 4;
-                    // If red/green/blue channels are non-zero (drawn pixels)
-                    if (data[idx] > 10 || data[idx + 1] > 10 || data[idx + 2] > 10) {
-                        if (x < minX) minX = x;
-                        if (x > maxX) maxX = x;
-                        if (y < minY) minY = y;
-                        if (y > maxY) maxY = y;
-                        hasDrawing = true;
+                activeEventSource.onmessage = (e) => {
+                    try {
+                        const payload = JSON.parse(e.data);
+                        renderPixels(payload.pixels);
+                        updateProgress(payload.step, payload.total_steps);
+                    } catch (err) {
+                        console.error('Error parsing SSE frame:', err);
                     }
-                }
-            }
+                };
 
-            const offscreen = document.createElement('canvas');
-            offscreen.width = 28;
-            offscreen.height = 28;
-            const oCtx = offscreen.getContext('2d');
+                activeEventSource.onerror = () => {
+                    // SSE connection closes when finished or error occurs
+                    activeEventSource.close();
+                    activeEventSource = null;
+                    
+                    const duration = (performance.now() - startTime).toFixed(0);
+                    logToSystem(`Generation complete! Server duration: ${duration}ms`);
+                    finishGeneration(`Latency: ${duration}ms`);
+                };
 
-            // Set background to black
-            oCtx.fillStyle = '#000000';
-            oCtx.fillRect(0, 0, 28, 28);
-
-            if (!hasDrawing) {
-                // Fallback: draw empty/blank canvas
-                oCtx.drawImage(canvas, 0, 0, 28, 28);
             } else {
-                // 2. Crop drawing region and make it square to preserve aspect ratio
-                let boxWidth = maxX - minX + 1;
-                let boxHeight = maxY - minY + 1;
-                const size = Math.max(boxWidth, boxHeight);
+                // Client side WebAssembly mode
+                statusDot.className = 'predict-dot loading';
+                statusText.innerText = 'WASM generating...';
 
-                // Add a 15% padding margin to replicate dataset margins
-                const padding = Math.round(size * 0.15);
-                const paddedSize = size + padding * 2;
-
-                // Center the crop box
-                const centerX = minX + boxWidth / 2;
-                const centerY = minY + boxHeight / 2;
-
-                // Ensure crop size doesn't exceed canvas dimensions
-                const finalCropSize = Math.min(width, height, paddedSize);
-
-                // Calculate starting coordinates and clamp them within canvas bounds
-                let cropX = Math.round(centerX - finalCropSize / 2);
-                let cropY = Math.round(centerY - finalCropSize / 2);
-
-                cropX = Math.max(0, Math.min(width - finalCropSize, cropX));
-                cropY = Math.max(0, Math.min(height - finalCropSize, cropY));
-
-                // Draw cropped & padded region onto 28x28 canvas
-                oCtx.drawImage(
-                    canvas,
-                    cropX, cropY, finalCropSize, finalCropSize, // Source crop
-                    0, 0, 28, 28                               // Destination size
-                );
-            }
-
-
-            const imgData = oCtx.getImageData(0, 0, 28, 28);
-
-            // Draw to the visible preview canvas if checked
-            if (showPreviewCheck && showPreviewCheck.checked) {
-                previewCtx.putImageData(imgData, 0, 0);
-            } else {
-                previewCtx.fillStyle = '#000000';
-                previewCtx.fillRect(0, 0, 28, 28);
-            }
-
-            const finalData = imgData.data;
-
-            const pixels = [];
-            for (let i = 0; i < finalData.length; i += 4) {
-                const r = finalData[i];
-                const g = finalData[i + 1];
-                const b = finalData[i + 2];
-                const grayscale = (r + g + b) / 3;
-                pixels.push(grayscale);
-            }
-            return pixels;
-        }
-
-
-        // POST pixels to Backend server
-        function sendImageToServer() {
-            const pixels = getScaledGrayscalePixels();
-            const startTime = performance.now();
-
-            fetch('/predict', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ image: pixels })
-            })
-                .then(res => res.json())
-                .then(result => {
-                    const duration = (performance.now() - startTime).toFixed(1);
-                    updateProbabilities(result.probabilities, duration);
-                    statusText.innerText = `Latency: ${duration}ms`;
-                    statusDot.className = 'predict-dot';
-                    logToSystem(`Server prediction latency: ${duration} ms`);
-                })
-                .catch(err => {
-                    console.error('Server inference error:', err);
-                    statusText.innerText = 'Failed';
-                    statusDot.className = 'predict-dot idle';
-                });
-        }
-
-        // Run client-side WebAssembly inference directly
-        function runOfflineInference() {
-            if (!predictor) return;
-            const pixels = getScaledGrayscalePixels();
-            const startTime = performance.now();
-
-            try {
-                const probabilities = predictor.predict(pixels);
-                const duration = (performance.now() - startTime).toFixed(1);
-                updateProbabilities(probabilities, duration);
-                statusText.innerText = `Latency: ${duration}ms`;
-                statusDot.className = 'predict-dot';
-                logToSystem(`WASM prediction latency: ${duration} ms`);
-            } catch (err) {
-                console.error('WASM prediction error:', err);
-                statusText.innerText = 'Failed';
-                statusDot.className = 'predict-dot idle';
-            }
-        }
-
-        // Update dynamic progress bars & highlights (top 3 and badges)
-        function updateProbabilities(probabilities, duration) {
-            if (!appConfig || !appConfig.classes) return;
-
-            // Map, sort, and extract top predictions
-            const sorted = appConfig.classes
-                .map((name, i) => ({ name, i, prob: probabilities[i] }))
-                .sort((a, b) => b.prob - a.prob);
-
-            const top = sorted[0];
-            const isAwaiting = top.prob < 0.01;
-
-            // 1. Update Hero Area
-            const heroLabel = document.getElementById('heroLabel');
-            const heroConf = document.getElementById('heroConf');
-            if (isAwaiting) {
-                heroLabel.innerText = "Awaiting Drawing";
-                heroConf.style.visibility = "hidden";
-                heroConf.innerText = "00.0%";
-            } else {
-                heroLabel.innerText = top.name;
-                heroConf.innerText = `${(top.prob * 100).toFixed(1)}%`;
-                heroConf.style.visibility = "visible";
-            }
-
-            // 2. Update Top 3 rows in-place
-            const probsList = document.getElementById('probsList');
-            if (isAwaiting) {
-                probsList.classList.add('awaiting');
-            } else {
-                probsList.classList.remove('awaiting');
-            }
-
-            const numToShow = Math.min(3, sorted.length);
-            for (let r = 0; r < 3; r++) {
-                const rowEl = document.getElementById(`probRow-${r}`);
-                const labelEl = document.getElementById(`probLabel-${r}`);
-                const fillEl = document.getElementById(`probFill-${r}`);
-                const valueEl = document.getElementById(`probValue-${r}`);
-
-                if (!rowEl || !labelEl || !fillEl || !valueEl) continue;
-
-                if (r < numToShow) {
-                    const item = sorted[r];
-                    const pct = (item.prob * 100).toFixed(1);
-
-                    labelEl.innerText = item.name;
-                    fillEl.style.width = `${pct}%`;
-                    valueEl.innerText = `${pct}%`;
-
-                    // Handle active highlight classes
-                    if (r === 0 && !isAwaiting) {
-                        rowEl.className = 'prob-row active';
-                        labelEl.className = 'digit-label active';
-                        valueEl.className = 'value-label active';
-                    } else {
-                        rowEl.className = 'prob-row';
-                        labelEl.className = 'digit-label';
-                        valueEl.className = 'value-label';
+                try {
+                    // Check if WASM loaded
+                    if (!wasmModule) {
+                        await loadWasmPredictor();
                     }
-                } else {
-                    labelEl.innerText = "—";
-                    fillEl.style.width = "0%";
-                    valueEl.innerText = "0.0%";
-                    rowEl.className = 'prob-row';
-                    labelEl.className = 'digit-label';
-                    valueEl.className = 'value-label';
+
+                    const dataset = appConfig.dataset;
+                    if (!weightsCache[dataset]) {
+                        await loadWasmPredictor();
+                    }
+
+                    const numClasses = appConfig.classes.length;
+                    logToSystem('Initializing WASM Diffusion Generator...');
+                    const generator = new wasmModule.GeneratorWasm(weightsCache[dataset], numClasses, classId, steps);
+
+                    // Show initial noise
+                    const initNoise = generator.get_current_pixels();
+                    renderPixels(initNoise);
+
+                    let stepIdx = 0;
+                    
+                    function runStep() {
+                        if (!isGenerating) return;
+
+                        try {
+                            const res = generator.step();
+                            if (res) {
+                                renderPixels(res);
+                                stepIdx++;
+                                updateProgress(stepIdx, steps);
+                                setTimeout(runStep, 25); // visual smooth delay
+                            } else {
+                                const duration = (performance.now() - startTime).toFixed(0);
+                                logToSystem(`Generation complete! WASM duration: ${duration}ms`);
+                                finishGeneration(`Latency: ${duration}ms`);
+                            }
+                        } catch (e) {
+                            console.error('WASM generation step failed:', e);
+                            logToSystem(`WASM generation error: ${e.message || e}`, true);
+                            finishGeneration('Failed');
+                        }
+                    }
+
+                    setTimeout(runStep, 25);
+
+                } catch (err) {
+                    console.error('WASM startup failed:', err);
+                    logToSystem(`WASM start error: ${err.message || err}`, true);
+                    finishGeneration('Failed');
                 }
             }
-
-            // 3. Update All Categories Badges
-            appConfig.classes.forEach((_, i) => {
-                const badge = document.getElementById(`badge-${i}`);
-                if (!badge) return;
-
-                badge.className = 'category-badge';
-                if (!isAwaiting) {
-                    if (i === top.i) {
-                        badge.classList.add('active');
-                    } else if (sorted.slice(1, 3).some(item => item.i === i)) {
-                        badge.classList.add('top5');
-                    }
-                }
-            });
         }
 
-        // Event Listeners (Mouse + Touch)
-        canvas.addEventListener('mousedown', startDrawing);
-        canvas.addEventListener('mousemove', draw);
-        window.addEventListener('mouseup', stopDrawing);
+        function finishGeneration(statusTextStr = 'Ready') {
+            isGenerating = false;
+            generateBtn.disabled = false;
+            generateBtn.innerText = 'Generate Drawing';
+            clearBtn.disabled = false;
+            wrapper.classList.remove('generating');
+            statusDot.className = 'predict-dot idle';
+            statusText.innerText = statusTextStr;
 
-        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startDrawing(e); });
-        canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e); });
-        window.addEventListener('touchend', stopDrawing);
+            if (activeEventSource) {
+                activeEventSource.close();
+                activeEventSource = null;
+            }
+        }
 
-        clearBtn.addEventListener('click', clearCanvas);
+        function clearCanvas() {
+            if (isGenerating) return;
+            
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            previewCtx.fillStyle = '#000000';
+            previewCtx.fillRect(0, 0, 28, 28);
+
+            progressContainer.style.display = 'none';
+            progressBarFill.style.width = '0%';
+            
+            statusDot.className = 'predict-dot idle';
+            statusText.innerText = 'Ready';
+        }
     </script>
-
-
-
 </body>
 
 </html>

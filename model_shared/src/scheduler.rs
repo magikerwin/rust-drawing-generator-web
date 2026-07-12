@@ -47,8 +47,12 @@ impl DDIMScheduler {
         let device = x0.device();
         let batch_size = x0.shape().dims[0];
         
-        // Extract alpha_cumprod for the batch of timesteps
-        let steps_vec = timesteps.into_data().into_vec::<i64>().unwrap();
+        // Extract alpha_cumprod for the batch of timesteps (handling i64 on CPU and i32 on GPU)
+        let data = timesteps.into_data();
+        let steps_vec: Vec<i64> = match data.clone().into_vec::<i64>() {
+            Ok(v) => v,
+            Err(_) => data.into_vec::<i32>().unwrap().into_iter().map(|x| x as i64).collect(),
+        };
         
         let mut sqrt_alphas_cumprod_vec = Vec::with_capacity(batch_size);
         let mut sqrt_one_minus_alphas_cumprod_vec = Vec::with_capacity(batch_size);

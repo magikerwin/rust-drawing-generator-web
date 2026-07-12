@@ -23,7 +23,7 @@ use burn::{
 pub struct TrainingConfig {
     #[config(default = 5)]
     pub num_epochs: usize,      // Number of epochs to train for
-    #[config(default = 128)]
+    #[config(default = 32)]
     pub batch_size: usize,      // Number of samples in each batch
     #[config(default = 1)]
     pub num_workers: usize,     // Number of parallel threads used for data loading

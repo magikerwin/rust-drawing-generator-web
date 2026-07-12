@@ -1,12 +1,10 @@
 use wasm_bindgen::prelude::*;
 use burn::{
     backend::NdArray,
-    module::Module,
     prelude::*,
     record::{BinBytesRecorder, FullPrecisionSettings, Recorder},
-    tensor::activation::softmax,
 };
-use model_shared::Model;
+use model_shared::{Model, DDIMScheduler};
 
 const MODEL_VERSION: &str = include_str!("../weights-version.txt");
 
@@ -15,160 +13,131 @@ pub fn get_compiled_model_version() -> String {
     MODEL_VERSION.trim().to_string()
 }
 
-
-
 #[wasm_bindgen]
-pub struct MnistPredictor {
+pub struct GeneratorWasm {
     model: Model<NdArray>,
     device: <NdArray as Backend>::Device,
+    scheduler: DDIMScheduler,
+    x_t: Tensor<NdArray, 4>,
+    class_ids: Tensor<NdArray, 1, Int>,
+    steps: Vec<usize>,
+    current_step_idx: usize,
 }
 
 #[wasm_bindgen]
-impl MnistPredictor {
+impl GeneratorWasm {
     #[wasm_bindgen(constructor)]
-    pub fn new(model_bytes: &[u8]) -> Result<MnistPredictor, JsValue> {
+    pub fn new(model_bytes: &[u8], num_classes: usize, class_id: usize, num_steps: usize) -> Result<GeneratorWasm, JsValue> {
         console_error_panic_hook::set_once();
         let device = Default::default();
         
         let recorder = BinBytesRecorder::<FullPrecisionSettings>::default();
         let record = recorder.load(model_bytes.to_vec(), &device)
-            .map_err(|e| JsValue::from_str(&format!("Failed to load MNIST model weights: {:?}", e)))?;
+            .map_err(|e| JsValue::from_str(&format!("Failed to load model weights: {:?}", e)))?;
             
-        let model = Model::<NdArray>::new(&device, 10).load_record(record);
+        let model = Model::<NdArray>::new(&device, num_classes).load_record(record);
+        let scheduler = DDIMScheduler::new(1000, 1e-4, 0.02);
         
-        Ok(Self { model, device })
-    }
-    
-    pub fn predict(&self, raw_image: &[f32]) -> Result<Vec<f32>, JsValue> {
-        predict_internal(&self.model, &self.device, raw_image, false) // MNIST expects [0, 255]
-    }
-}
-
-#[wasm_bindgen]
-pub struct QuickdrawPredictor {
-    model: Model<NdArray>,
-    device: <NdArray as Backend>::Device,
-}
-
-#[wasm_bindgen]
-impl QuickdrawPredictor {
-    #[wasm_bindgen(constructor)]
-    pub fn new(model_bytes: &[u8]) -> Result<QuickdrawPredictor, JsValue> {
-        console_error_panic_hook::set_once();
-        let device = Default::default();
+        let x_t = Tensor::<NdArray, 4>::random(
+            [1, 1, 28, 28],
+            burn::tensor::Distribution::Normal(0.0, 1.0),
+            &device,
+        );
+        let class_ids = Tensor::<NdArray, 1, Int>::from_ints([class_id as i32], &device);
         
-        let recorder = BinBytesRecorder::<FullPrecisionSettings>::default();
-        let record = recorder.load(model_bytes.to_vec(), &device)
-            .map_err(|e| JsValue::from_str(&format!("Failed to load Quickdraw model weights: {:?}", e)))?;
-            
-        let model = Model::<NdArray>::new(&device, 25).load_record(record);
-        
-        Ok(Self { model, device })
-    }
-    
-    pub fn predict(&self, raw_image: &[f32]) -> Result<Vec<f32>, JsValue> {
-        predict_internal(&self.model, &self.device, raw_image, true) // Quickdraw expects [0, 1]
-    }
-}
-
-#[wasm_bindgen]
-pub struct EmnistPredictor {
-    model: Model<NdArray>,
-    device: <NdArray as Backend>::Device,
-}
-
-#[wasm_bindgen]
-impl EmnistPredictor {
-    #[wasm_bindgen(constructor)]
-    pub fn new(model_bytes: &[u8]) -> Result<EmnistPredictor, JsValue> {
-        console_error_panic_hook::set_once();
-        let device = Default::default();
-        
-        let recorder = BinBytesRecorder::<FullPrecisionSettings>::default();
-        let record = recorder.load(model_bytes.to_vec(), &device)
-            .map_err(|e| JsValue::from_str(&format!("Failed to load EMNIST model weights: {:?}", e)))?;
-            
-        let model = Model::<NdArray>::new(&device, 26).load_record(record);
-        
-        Ok(Self { model, device })
-    }
-    
-    pub fn predict(&self, raw_image: &[f32]) -> Result<Vec<f32>, JsValue> {
-        predict_internal(&self.model, &self.device, raw_image, false) // EMNIST expects [0, 255] (just like MNIST)
-    }
-}
-
-fn predict_internal(
-    model: &Model<NdArray>,
-    device: &<NdArray as Backend>::Device,
-    raw_image: &[f32],
-    normalize_to_one: bool,
-) -> Result<Vec<f32>, JsValue> {
-    if raw_image.len() != 784 {
-        return Err(JsValue::from_str("Input must be exactly 784 pixels"));
-    }
-    
-    let mut image_array = [0.0f32; 784];
-    image_array.copy_from_slice(raw_image);
-    
-    let max_pixel = image_array.iter().fold(0.0f32, |m, &x| m.max(x));
-    
-    if normalize_to_one {
-        // Quickdraw expects [0.0..1.0]. If input is in [0..255] range, normalize it.
-        if max_pixel > 1.0 {
-            for val in image_array.iter_mut() {
-                *val /= 255.0;
-            }
+        let mut steps = Vec::new();
+        let step_ratio = 1000 / num_steps;
+        for i in (0..num_steps).rev() {
+            steps.push(i * step_ratio);
         }
-    } else {
-        // MNIST expects [0.0..255.0]. If input is in [0..1] range, scale it.
-        if max_pixel <= 1.0 && max_pixel > 0.0 {
-            for val in image_array.iter_mut() {
-                *val *= 255.0;
-            }
-        }
+        
+        Ok(Self {
+            model,
+            device,
+            scheduler,
+            x_t,
+            class_ids,
+            steps,
+            current_step_idx: 0,
+        })
     }
     
-    // 1. Convert raw array to 4D Tensor [1, 1, 28, 28]
-    let input = Tensor::<NdArray, 1>::from_floats(image_array, device)
-        .reshape([1, 1, 28, 28]);
-        
-    // 2. Run inference
-    let output = model.forward(input);
+    pub fn total_steps(&self) -> usize {
+        self.steps.len()
+    }
     
-    // 3. Apply softmax
-    let probs = softmax(output, 1);
-    let probs_vec = probs.into_data().into_vec::<f32>()
-        .map_err(|e| JsValue::from_str(&format!("Failed to extract tensor data: {:?}", e)))?;
+    pub fn current_step(&self) -> usize {
+        self.current_step_idx
+    }
+    
+    pub fn is_complete(&self) -> bool {
+        self.current_step_idx >= self.steps.len()
+    }
+    
+    pub fn get_current_pixels(&self) -> Result<Vec<f32>, JsValue> {
+        let data = self.x_t.clone().into_data().into_vec::<f32>()
+            .map_err(|e| JsValue::from_str(&format!("Failed to extract tensor data: {:?}", e)))?;
+        let pixels = data.into_iter()
+            .map(|val| {
+                let denorm = (val + 1.0) * 127.5;
+                denorm.clamp(0.0, 255.0)
+            })
+            .collect();
+        Ok(pixels)
+    }
+    
+    pub fn step(&mut self) -> Result<Option<Vec<f32>>, JsValue> {
+        if self.is_complete() {
+            return Ok(None);
+        }
         
-    Ok(probs_vec)
+        let t = self.steps[self.current_step_idx];
+        let prev_t = if self.current_step_idx + 1 < self.steps.len() {
+            Some(self.steps[self.current_step_idx + 1])
+        } else {
+            None
+        };
+        
+        let timesteps = Tensor::<NdArray, 1>::from_floats([t as f32], &self.device);
+        
+        let predicted_noise = self.model.unet.forward(self.x_t.clone(), timesteps, self.class_ids.clone());
+        self.x_t = self.scheduler.step(self.x_t.clone(), predicted_noise, t, prev_t);
+        
+        self.current_step_idx += 1;
+        
+        let pixels = self.get_current_pixels()?;
+        Ok(Some(pixels))
+    }
 }
-
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use wasm_bindgen_test::*;
+    use burn::record::Recorder;
 
     #[wasm_bindgen_test]
-    fn test_mnist_predictor_creation_and_predict() {
-        let bytes = include_bytes!("../../target/mnist-model/model.bin");
-        let predictor = MnistPredictor::new(bytes).unwrap();
-        let dummy_image = [0.0f32; 784];
-        let probs = predictor.predict(&dummy_image).unwrap();
-        assert_eq!(probs.len(), 10);
-        let sum: f32 = probs.iter().sum();
-        assert!((sum - 1.0).abs() < 1e-4);
-    }
-
-    #[wasm_bindgen_test]
-    fn test_quickdraw_predictor_creation_and_predict() {
-        let bytes = include_bytes!("../../target/quickdraw-model/model.bin");
-        let predictor = QuickdrawPredictor::new(bytes).unwrap();
-        let dummy_image = [0.0f32; 784];
-        let probs = predictor.predict(&dummy_image).unwrap();
-        assert_eq!(probs.len(), 25);
-        let sum: f32 = probs.iter().sum();
-        assert!((sum - 1.0).abs() < 1e-4);
+    fn test_generator_wasm_creation() {
+        let device = Default::default();
+        let model = Model::<NdArray>::new(&device, 10);
+        
+        // Serialize the model's record in memory to get bytes
+        let recorder = BinBytesRecorder::<FullPrecisionSettings>::default();
+        let bytes = recorder.record(model.into_record(), ()).unwrap();
+        
+        // Create GeneratorWasm from those bytes
+        let mut generator = GeneratorWasm::new(&bytes, 10, 3, 5).unwrap();
+        assert_eq!(generator.total_steps(), 5);
+        assert_eq!(generator.current_step(), 0);
+        assert!(!generator.is_complete());
+        
+        // Get initial pixels
+        let initial_pixels = generator.get_current_pixels().unwrap();
+        assert_eq!(initial_pixels.len(), 784);
+        
+        // Step once
+        let step_pixels = generator.step().unwrap().unwrap();
+        assert_eq!(step_pixels.len(), 784);
+        assert_eq!(generator.current_step(), 1);
     }
 }

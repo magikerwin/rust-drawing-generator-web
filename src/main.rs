@@ -266,19 +266,29 @@ async fn main() {
 
             println!("Loading EMNIST Letters dataset into memory...");
             let emnist_train = emnist::EmnistDataset::new(true);
-            let mut train_items = Vec::with_capacity(emnist_train.len());
-            for i in 0..emnist_train.len() {
+            let train_len = emnist_train.len();
+            let mut train_items = Vec::with_capacity(train_len);
+            println!("  Loading {} train items...", train_len);
+            for i in 0..train_len {
                 if let Some(item) = emnist_train.get(i) {
                     train_items.push(item);
+                }
+                if (i + 1) % 30000 == 0 {
+                    println!("    Parsed {}/{} train items...", i + 1, train_len);
                 }
             }
             let train_dataset = InMemDataset::new(train_items);
 
             let emnist_test = emnist::EmnistDataset::new(false);
-            let mut valid_items = Vec::with_capacity(emnist_test.len());
-            for i in 0..emnist_test.len() {
+            let test_len = emnist_test.len();
+            let mut valid_items = Vec::with_capacity(test_len);
+            println!("  Loading {} validation items...", test_len);
+            for i in 0..test_len {
                 if let Some(item) = emnist_test.get(i) {
                     valid_items.push(item);
+                }
+                if (i + 1) % 5000 == 0 {
+                    println!("    Parsed {}/{} validation items...", i + 1, test_len);
                 }
             }
             let valid_dataset = InMemDataset::new(valid_items);
@@ -312,19 +322,29 @@ async fn main() {
             println!("Loading MNIST dataset into memory...");
             
             let mnist_train = MnistDataset::train();
-            let mut train_items = Vec::with_capacity(60000);
-            for i in 0..mnist_train.len() {
+            let train_len = mnist_train.len();
+            let mut train_items = Vec::with_capacity(train_len);
+            println!("  Loading {} train items...", train_len);
+            for i in 0..train_len {
                 if let Some(item) = mnist_train.get(i) {
                     train_items.push(item);
+                }
+                if (i + 1) % 15000 == 0 {
+                    println!("    Parsed {}/{} train items...", i + 1, train_len);
                 }
             }
             let train_dataset = InMemDataset::new(train_items);
 
             let mnist_test = MnistDataset::test();
-            let mut valid_items = Vec::with_capacity(10000);
-            for i in 0..mnist_test.len() {
+            let test_len = mnist_test.len();
+            let mut valid_items = Vec::with_capacity(test_len);
+            println!("  Loading {} validation items...", test_len);
+            for i in 0..test_len {
                 if let Some(item) = mnist_test.get(i) {
                     valid_items.push(item);
+                }
+                if (i + 1) % 2500 == 0 {
+                    println!("    Parsed {}/{} validation items...", i + 1, test_len);
                 }
             }
             let valid_dataset = InMemDataset::new(valid_items);

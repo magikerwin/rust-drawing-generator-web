@@ -30,25 +30,26 @@ fn main() {
     let qd_weights = root_path.join("target/quickdraw-model/model.bin");
     let emnist_weights = root_path.join("target/emnist-model/model.bin");
 
-    if !mnist_weights.exists() {
-        eprintln!("Error: Local MNIST weights not found at {:?}.", mnist_weights);
-        eprintln!("Please run training first using: cargo run --release -- --dataset mnist");
-        std::process::exit(1);
+    let mut present_datasets = Vec::new();
+    if mnist_weights.exists() {
+        present_datasets.push(("mnist-model.bin", mnist_weights, root_path.join("docs/mnist-model.bin")));
+    } else {
+        println!("Info: Local MNIST weights not found. Skipping.");
     }
-    if !qd_weights.exists() {
-        eprintln!(
-            "Error: Local Quick Draw weights not found at {:?}.",
-            qd_weights
-        );
-        eprintln!("Please run training first using: cargo run --release -- --dataset quickdraw");
-        std::process::exit(1);
+    if qd_weights.exists() {
+        present_datasets.push(("quickdraw-model.bin", qd_weights, root_path.join("docs/quickdraw-model.bin")));
+    } else {
+        println!("Info: Local Quick Draw weights not found. Skipping.");
     }
-    if !emnist_weights.exists() {
-        eprintln!(
-            "Error: Local EMNIST weights not found at {:?}.",
-            emnist_weights
-        );
-        eprintln!("Please run training first using: cargo run --release -- --dataset emnist");
+    if emnist_weights.exists() {
+        present_datasets.push(("emnist-model.bin", emnist_weights, root_path.join("docs/emnist-model.bin")));
+    } else {
+        println!("Info: Local EMNIST weights not found. Skipping.");
+    }
+
+    if present_datasets.is_empty() {
+        eprintln!("Error: No trained model weights found in target/ directories.");
+        eprintln!("Please train at least one dataset first, e.g.: cargo run --release -- --dataset mnist");
         std::process::exit(1);
     }
 
@@ -71,73 +72,48 @@ fn main() {
         .status();
 
     println!("Preparing model binaries for upload and local dev...");
-    let temp_mnist = root_path.join("mnist-model.bin");
-    let temp_qd = root_path.join("quickdraw-model.bin");
-    let temp_emnist = root_path.join("emnist-model.bin");
-    let docs_mnist = root_path.join("docs/mnist-model.bin");
-    let docs_qd = root_path.join("docs/quickdraw-model.bin");
-    let docs_emnist = root_path.join("docs/emnist-model.bin");
+    let mut files_to_upload = Vec::new();
 
-    if let Err(e) = fs::copy(&mnist_weights, &temp_mnist) {
-        eprintln!("Failed to copy to {:?}: {}", temp_mnist, e);
-        std::process::exit(1);
-    }
-    if let Err(e) = fs::copy(&qd_weights, &temp_qd) {
-        eprintln!("Failed to copy to {:?}: {}", temp_qd, e);
-        let _ = fs::remove_file(&temp_mnist);
-        std::process::exit(1);
-    }
-    if let Err(e) = fs::copy(&emnist_weights, &temp_emnist) {
-        eprintln!("Failed to copy to {:?}: {}", temp_emnist, e);
-        let _ = fs::remove_file(&temp_mnist);
-        let _ = fs::remove_file(&temp_qd);
-        std::process::exit(1);
-    }
-
-    if let Err(e) = fs::copy(&mnist_weights, &docs_mnist) {
-        eprintln!("Failed to copy to {:?}: {}", docs_mnist, e);
-        let _ = fs::remove_file(&temp_mnist);
-        let _ = fs::remove_file(&temp_qd);
-        let _ = fs::remove_file(&temp_emnist);
-        std::process::exit(1);
-    }
-    if let Err(e) = fs::copy(&qd_weights, &docs_qd) {
-        eprintln!("Failed to copy to {:?}: {}", docs_qd, e);
-        let _ = fs::remove_file(&temp_mnist);
-        let _ = fs::remove_file(&temp_qd);
-        let _ = fs::remove_file(&temp_emnist);
-        std::process::exit(1);
-    }
-    if let Err(e) = fs::copy(&emnist_weights, &docs_emnist) {
-        eprintln!("Failed to copy to {:?}: {}", docs_emnist, e);
-        let _ = fs::remove_file(&temp_mnist);
-        let _ = fs::remove_file(&temp_qd);
-        let _ = fs::remove_file(&temp_emnist);
-        std::process::exit(1);
+    for (filename, src_path, docs_path) in &present_datasets {
+        let temp_dest = root_path.join(filename);
+        if let Err(e) = fs::copy(src_path, &temp_dest) {
+            eprintln!("Failed to copy to {:?}: {}", temp_dest, e);
+            for f in &files_to_upload {
+                let _ = fs::remove_file(root_path.join(f));
+            }
+            std::process::exit(1);
+        }
+        if let Err(e) = fs::copy(src_path, docs_path) {
+            eprintln!("Failed to copy to {:?}: {}", docs_path, e);
+            let _ = fs::remove_file(&temp_dest);
+            for f in &files_to_upload {
+                let _ = fs::remove_file(root_path.join(f));
+            }
+            std::process::exit(1);
+        }
+        files_to_upload.push(filename.to_string());
     }
 
     println!(
         "Uploading model weights to GitHub Release {} (overwriting previous assets)...",
         version
     );
+    let mut upload_args = vec!["release", "upload", version];
+    for f in &files_to_upload {
+        upload_args.push(f);
+    }
+    upload_args.push("--clobber");
+
     let upload_status = Command::new("gh")
-        .args([
-            "release",
-            "upload",
-            version,
-            "mnist-model.bin",
-            "quickdraw-model.bin",
-            "emnist-model.bin",
-            "--clobber",
-        ])
+        .args(&upload_args)
         .current_dir(&root_path)
         .status();
 
     // Clean up temporary files
     println!("Cleaning up temporary files...");
-    let _ = fs::remove_file(&temp_mnist);
-    let _ = fs::remove_file(&temp_qd);
-    let _ = fs::remove_file(&temp_emnist);
+    for f in &files_to_upload {
+        let _ = fs::remove_file(root_path.join(f));
+    }
 
     match upload_status {
         Ok(status) if status.success() => {

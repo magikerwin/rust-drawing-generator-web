@@ -4239,6 +4239,7 @@ dependencies = [
  "axum",
  "burn",
  "flate2",
+ "futures-util",
  "model_shared",
  "rand 0.8.6",
  "reqwest",

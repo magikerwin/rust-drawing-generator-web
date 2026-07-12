@@ -5,22 +5,25 @@ mod inference;
 mod quickdraw;
 mod emnist;
 
-
 use burn::{
     backend::{Autodiff, NdArray},
     data::dataset::{vision::MnistDataset, Dataset},
     optim::AdamConfig,
 };
 use crate::training::{train, TrainingConfig};
-use crate::inference::{load_model, predict_probabilities};
+use crate::inference::{load_model, generate_image_steps, render_ascii};
 
 use axum::{
-    extract::State,
+    extract::{State, Query},
     response::Html,
-    routing::{get, post},
+    routing::get,
     Json, Router,
 };
+use axum::response::sse::{Event, Sse};
+use futures_util::stream::{self, Stream};
 use std::sync::Arc;
+use std::convert::Infallible;
+use std::time::Duration;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize)]
@@ -39,17 +42,19 @@ struct AppState {
     config: AppConfig,
 }
 
-/// JSON payload structure for /predict requests
+/// Query parameters for generation requests
 #[derive(Deserialize)]
-struct PredictRequest {
-    image: Vec<f32>,
+struct GenerateQuery {
+    class_id: usize,
+    steps: Option<usize>,
 }
 
-/// JSON response structure for /predict responses
+/// SSE step payload structure
 #[derive(Serialize)]
-struct PredictResponse {
-    prediction: usize,
-    probabilities: Vec<f32>,
+struct SseStepPayload {
+    step: usize,
+    total_steps: usize,
+    pixels: Vec<f32>,
 }
 
 /// Handler that serves the HTML drawing canvas frontend page
@@ -64,46 +69,43 @@ async fn weights_version_handler() -> Result<String, axum::http::StatusCode> {
         .map_err(|_| axum::http::StatusCode::NOT_FOUND)
 }
 
-/// Handler that handles post requests to run model predictions on drawing inputs
-async fn predict_handler(
+/// Handler that streams intermediate generation steps via Server-Sent Events (SSE)
+async fn generate_handler(
     State(state): State<AppState>,
-    Json(payload): Json<PredictRequest>,
-) -> Json<PredictResponse> {
-    // 1. Convert the incoming Vec<f32> to a fixed [f32; 784] array
-    let mut raw_image = [0.0f32; 784];
-    let len = payload.image.len().min(784);
-    raw_image[..len].copy_from_slice(&payload.image[..len]);
-
-    // Normalize/scale pixels based on dataset expectations
-    let max_pixel = raw_image.iter().fold(0.0f32, |m, &x| m.max(x));
-    let is_quickdraw = state.config.dataset == "quickdraw";
-
-    if is_quickdraw {
-        // QuickDraw expects [0, 1]
-        if max_pixel > 1.0 {
-            for val in raw_image.iter_mut() {
-                *val /= 255.0;
-            }
-        }
-    } else {
-        // MNIST expects [0, 255]
-        if max_pixel <= 1.0 && max_pixel > 0.0 {
-            for val in raw_image.iter_mut() {
-                *val *= 255.0;
-            }
-        }
-    }
-
-
-    // 2. Perform prediction and extract softmax probabilities
-    let model = state.model.lock().unwrap();
+    Query(query): Query<GenerateQuery>,
+) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
+    let steps = query.steps.unwrap_or(20).clamp(5, 100);
     
-    let (prediction, probabilities) = predict_probabilities(&model, raw_image, &state.device);
+    // Perform progressive DDIM generation on the CPU
+    let history = {
+        let model = state.model.lock().unwrap();
+        generate_image_steps(&model, &state.device, query.class_id, steps)
+    };
 
-    Json(PredictResponse {
-        prediction,
-        probabilities,
-    })
+    let total = history.len();
+    
+    // Create an asynchronous stream yielding each frame with an artificial 35ms delay
+    let stream = stream::unfold((history, 0), move |(history, idx)| async move {
+        if idx >= history.len() {
+            None
+        } else {
+            let pixels = history[idx].clone();
+            let payload = SseStepPayload {
+                step: idx,
+                total_steps: total - 1,
+                pixels,
+            };
+            let json = serde_json::to_string(&payload).unwrap();
+            let event = Event::default().data(json);
+            
+            // Add a small delay for smooth visual transition on the client canvas
+            tokio::time::sleep(Duration::from_millis(35)).await;
+            
+            Some((Ok(event), (history, idx + 1)))
+        }
+    });
+
+    Sse::new(stream)
 }
 
 /// Handler that serves the dataset and labels configuration
@@ -147,7 +149,7 @@ async fn main() {
         // ==========================================
         // BRANCH A: RUN INTERACTIVE WEB SERVER
         // ==========================================
-        println!("Loading model for web server...");
+        println!("Loading model for web server (dataset: {})...", dataset_arg);
         let device = Default::default(); // NdArray CPU device
         let model = Arc::new(std::sync::Mutex::new(load_model(artifact_dir, &device, num_classes)));
         
@@ -181,7 +183,7 @@ async fn main() {
         let app = Router::new()
             .route("/", get(index_handler))
             .route("/weights-version.txt", get(weights_version_handler))
-            .route("/predict", post(predict_handler))
+            .route("/api/generate", get(generate_handler))
             .route("/api/config", get(config_handler))
             .with_state(state);
 
@@ -190,7 +192,7 @@ async fn main() {
             .await
             .unwrap();
         println!("\n==================================================");
-        println!("   Burn MNIST Drawing App Web Server Running!");
+        println!("   Burn Drawing Generator Web Server Running!");
         println!("   Open your browser to: http://127.0.0.1:3000");
         println!("==================================================\n");
 
@@ -198,93 +200,33 @@ async fn main() {
 
     } else if run_inference {
         // ==========================================
-        // BRANCH B: RUN CLI PREDICTION (TEST SAMPLE)
+        // BRANCH B: RUN CLI PREDICTION (GENERATION)
         // ==========================================
-        println!("Loading model for inference (dataset: {})...", dataset_arg);
+        println!("Loading model for generation (dataset: {})...", dataset_arg);
         let device = Default::default();
         let model = load_model(artifact_dir, &device, num_classes);
 
-        // Fetch a sample from the selected dataset
-        let (flattened_image, class_name) = if dataset_arg == "quickdraw" {
-            let test_dataset = quickdraw::QuickDrawDataset::new(false, 5); // load 5 per class
-            // Choose a random class/sample index
-            use std::time::{SystemTime, UNIX_EPOCH};
-            let nanos = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
-            let millis = (nanos / 1_000_000) as usize;
-            let random_idx = millis % 25; // Choose a random class index
-            let sample = test_dataset.get(random_idx * 5).expect("Failed to get sample");
+        // Choose a random class to generate
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let nanos = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let class_id = (nanos % num_classes as u128) as usize;
 
-            let mut flattened_image = [0.0f32; 784];
-            for i in 0..28 {
-                for j in 0..28 {
-                    flattened_image[i * 28 + j] = sample.image[i][j];
-                }
-            }
-            let label = sample.label as usize;
-            let class = quickdraw::QUICKDRAW_CLASSES[label].to_string();
-            println!("\nDEBUG: nanos = {}, random_idx = {}, selected class = {}", nanos, random_idx, class);
-            (flattened_image, class)
+        let class_name = if dataset_arg == "quickdraw" {
+            quickdraw::QUICKDRAW_CLASSES[class_id].to_string()
         } else if dataset_arg == "emnist" {
-            let test_dataset = emnist::EmnistDataset::new(false);
-            let sample = test_dataset.get(0).expect("Failed to get sample");
-            let mut flattened_image = [0.0f32; 784];
-            for i in 0..28 {
-                for j in 0..28 {
-                    flattened_image[i * 28 + j] = sample.image[i][j];
-                }
-            }
-            let label = sample.label as usize;
-            let class = emnist::EMNIST_CLASSES[label].to_string();
-            (flattened_image, class)
+            emnist::EMNIST_CLASSES[class_id].to_string()
         } else {
-            let test_dataset = MnistDataset::test();
-            let sample = test_dataset.get(0).expect("Failed to get sample");
-            let mut flattened_image = [0.0f32; 784];
-            for i in 0..28 {
-                for j in 0..28 {
-                    flattened_image[i * 28 + j] = sample.image[i][j];
-                }
-            }
-            let label = sample.label as usize;
-            (flattened_image, label.to_string())
+            class_id.to_string()
         };
 
-        // Draw a simple ASCII art representing the input
-        println!("\nInput Image:");
-        for i in 0..28 {
-            for j in 0..28 {
-                if flattened_image[i * 28 + j] > 0.5 {
-                    print!("#");
-                } else if flattened_image[i * 28 + j] > 0.1 {
-                    print!(".");
-                } else {
-                    print!(" ");
-                }
-            }
-            println!();
-        }
-
-        // Perform prediction and print top 3 probabilities
-        let (_predicted_digit, probabilities) = predict_probabilities(&model, flattened_image, &device);
+        println!("Generating drawing for class: '{}' (class ID: {}) using 20 DDIM steps...", class_name, class_id);
         
-        let mut prob_indices: Vec<(usize, f32)> = probabilities
-            .into_iter()
-            .enumerate()
-            .collect();
-        prob_indices.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-
-        println!("\nTarget Label (Ground Truth): {}", class_name);
-        println!("Top Predictions:");
-        for (i, (idx, prob)) in prob_indices.iter().take(3).enumerate() {
-            let name = if dataset_arg == "quickdraw" {
-                quickdraw::QUICKDRAW_CLASSES[*idx].to_string()
-            } else if dataset_arg == "emnist" {
-                emnist::EMNIST_CLASSES[*idx].to_string()
-            } else {
-                idx.to_string()
-            };
-            println!("  {}. {:<12} : {:.2}%", i + 1, name, prob * 100.0);
-        }
+        let history = generate_image_steps(&model, &device, class_id, 20);
+        
+        // Render final drawing as ASCII art
+        println!("\nGenerated Output:");
+        render_ascii(history.last().unwrap());
+        println!("\nGeneration complete!");
 
     } else {
         // ==========================================
@@ -369,7 +311,6 @@ async fn main() {
             
             println!("Loading MNIST dataset into memory...");
             
-            // Force contiguous memory allocations for all items
             let mnist_train = MnistDataset::train();
             let mut train_items = Vec::with_capacity(60000);
             for i in 0..mnist_train.len() {

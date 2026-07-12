@@ -7,6 +7,7 @@ use burn::{
         dataloader::DataLoaderBuilder,
         dataset::Dataset,
     },
+    nn::loss::{MseLoss, Reduction},
     optim::AdamConfig,
     prelude::*,
     record::{CompactRecorder, BinFileRecorder, FullPrecisionSettings},
@@ -123,10 +124,10 @@ impl<B: AutodiffBackend> TrainStep<MnistBatch<B>, RegressionOutput<B>> for Model
             batch.timesteps,
             batch.targets,
         );
-        let loss = burn::tensor::loss::mse_loss(
+        let loss = MseLoss::new().forward(
             output.clone(),
             batch.noise.clone(),
-            burn::tensor::loss::Reduction::Mean,
+            Reduction::Auto,
         );
 
         TrainOutput::new(
@@ -149,10 +150,10 @@ impl<B: Backend> ValidStep<MnistBatch<B>, RegressionOutput<B>> for Model<B> {
             batch.timesteps,
             batch.targets,
         );
-        let loss = burn::tensor::loss::mse_loss(
+        let loss = MseLoss::new().forward(
             output.clone(),
             batch.noise.clone(),
-            burn::tensor::loss::Reduction::Mean,
+            Reduction::Auto,
         );
 
         RegressionOutput::new(

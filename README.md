@@ -60,7 +60,7 @@ Inputs: Latent State x_t [1×28×28], Timestep t [1], Class ID c [1]
 ## 📁 Project Structure
 
 ```
-rust-drawing-generator-web/
+rust-drawing-generator/
 ├── model_shared/           # Shared library workspace crate
 │   ├── src/lib.rs          # Model architecture & DDIMScheduler definition
 │   ├── src/unet.rs         # Conditional U-Net blocks and modules
@@ -71,15 +71,18 @@ rust-drawing-generator-web/
 │   ├── main.rs             # CLI router & Axum API serve endpoint
 │   ├── model.rs            # Re-exports shared Model wrapper
 │   ├── training.rs         # Autodiff training loop and MSE loss wrapper
-│   ├── inference.rs        # Iterative DDIM progressive sampling & ASCII art
+│   ├── inference.rs        # Iterative DDIM/Heun progressive sampling & ASCII art
 │   ├── data.rs             # Noise collator & normalized dataset batcher
-│   └── ...
+│   ├── emnist.rs           # EMNIST classes mapping helper
+│   ├── quickdraw.rs        # QuickDraw dataset loading and class mappings
+│   └── bin/                # Executable runner scripts
+│       ├── build_web.rs    # Script to build, optimize, and bundle WASM
+│       ├── convert.rs      # Utility to convert trained weights to binary format
+│       └── publish_weights.rs # Utility to bundle and publish weights to release targets
 ├── docs/                   # Static web frontend (served by GitHub Pages)
 │   ├── index.html          # Drawing generator UI with Developer Console
 │   └── pkg/                # Compiled WASM output (gitignored, built by CI)
-├── assets/                 # README showcase demo assets
-├── build.rs                # Copies model weights at build time
-└── publish-weights.ps1     # Helper script to upload weights to GitHub Releases
+└── assets/                 # README showcase demo assets
 ```
 
 ---

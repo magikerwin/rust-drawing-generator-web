@@ -596,11 +596,19 @@
                 <div class="settings-section">
                     <div class="setting-row">
                         <label class="setting-label" for="stepsSlider">
-                            <span>DDIM Sampling Steps</span>
-                            <span class="slider-value" id="stepsValue">20</span>
+                            <span>Denoising Steps</span>
+                            <span class="slider-value" id="stepsValue">16</span>
                         </label>
                         <div class="slider-container">
-                            <input type="range" id="stepsSlider" min="5" max="50" value="20" step="5">
+                            <input type="range" id="stepsSlider" min="0" max="5" value="4" step="1" style="width: 100%;">
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 0.65rem; color: var(--text-sub); margin-top: -4px; padding: 0 2px;">
+                            <span>1</span>
+                            <span>2</span>
+                            <span>4</span>
+                            <span>8</span>
+                            <span>16</span>
+                            <span>32</span>
                         </div>
                     </div>
 
@@ -753,9 +761,12 @@
         const systemLogsBox = document.getElementById('systemLogsBox');
         const debugStatusLabel = document.getElementById('debugStatusLabel');
 
+        const stepOptions = [1, 2, 4, 8, 16, 32];
+
         // Step Slider Update
         stepsSlider.addEventListener('input', () => {
-            stepsValue.textContent = stepsSlider.value;
+            const actualSteps = stepOptions[parseInt(stepsSlider.value)];
+            stepsValue.textContent = actualSteps;
         });
 
         // Schedule Slider Update & helper mapping functions
@@ -1096,7 +1107,7 @@
         async function startGeneration() {
             if (isGenerating) return;
 
-            const steps = parseInt(stepsSlider.value);
+            const steps = stepOptions[parseInt(stepsSlider.value)];
             const classId = selectedClassIndex;
 
             isGenerating = true;

@@ -606,11 +606,17 @@
 
                     <div class="setting-row">
                         <label class="setting-label">
-                            <span>Denoising Schedule</span>
+                            <span>Denoising Schedule (Power)</span>
+                            <span class="slider-value" id="scheduleValue" style="color: var(--accent-glow);">Linear (1.0)</span>
                         </label>
-                        <div class="tabs" style="align-self: flex-start; background: rgba(0,0,0,0.2); padding: 4px; border-radius: 20px; border: 1px solid var(--border-color); width: fit-content;">
-                            <button type="button" class="tab-btn active" id="scheduleLinear" style="font-size: 0.75rem; padding: 4px 12px; border-radius: 15px;">Linear</button>
-                            <button type="button" class="tab-btn" id="scheduleQuadratic" style="font-size: 0.75rem; padding: 4px 12px; border-radius: 15px;">Quadratic</button>
+                        <div class="slider-container">
+                            <input type="range" id="scheduleSlider" min="1.0" max="7.0" value="1.0" step="0.5" style="width: 100%;">
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 0.65rem; color: var(--text-sub); margin-top: -4px; padding: 0 2px;">
+                            <span>Linear (1.0)</span>
+                            <span>Quadratic (2.0)</span>
+                            <span>Cubic (3.0)</span>
+                            <span>Karras (7.0)</span>
                         </div>
                     </div>
 
@@ -689,8 +695,8 @@
 
         const stepsSlider = document.getElementById('stepsSlider');
         const stepsValue = document.getElementById('stepsValue');
-        const scheduleLinear = document.getElementById('scheduleLinear');
-        const scheduleQuadratic = document.getElementById('scheduleQuadratic');
+        const scheduleSlider = document.getElementById('scheduleSlider');
+        const scheduleValue = document.getElementById('scheduleValue');
         
         const progressContainer = document.getElementById('progressContainer');
         const progressText = document.getElementById('progressText');
@@ -739,20 +745,32 @@
             stepsValue.textContent = stepsSlider.value;
         });
 
-        // Schedule Selection Update
-        scheduleLinear.addEventListener('click', () => {
-            if (isGenerating) return;
-            selectedSchedule = 'linear';
-            scheduleLinear.classList.add('active');
-            scheduleQuadratic.classList.remove('active');
-            logToSystem('Selected schedule: Linear');
-        });
-        scheduleQuadratic.addEventListener('click', () => {
-            if (isGenerating) return;
-            selectedSchedule = 'quadratic';
-            scheduleQuadratic.classList.add('active');
-            scheduleLinear.classList.remove('active');
-            logToSystem('Selected schedule: Quadratic');
+        // Schedule Slider Update & helper mapping functions
+        function getScheduleParam(val) {
+            if (val === '1' || val === '1.0') return 'linear';
+            if (val === '2' || val === '2.0') return 'quadratic';
+            return val;
+        }
+
+        function updateScheduleLabel(val) {
+            const num = parseFloat(val);
+            if (num === 1.0) {
+                scheduleValue.textContent = 'Linear (1.0)';
+            } else if (num === 2.0) {
+                scheduleValue.textContent = 'Quadratic (2.0)';
+            } else if (num === 3.0) {
+                scheduleValue.textContent = 'Cubic (3.0)';
+            } else if (num === 7.0) {
+                scheduleValue.textContent = 'Karras (7.0)';
+            } else {
+                scheduleValue.textContent = `Exponent (${num.toFixed(1)})`;
+            }
+        }
+
+        scheduleSlider.addEventListener('input', () => {
+            selectedSchedule = getScheduleParam(scheduleSlider.value);
+            updateScheduleLabel(scheduleSlider.value);
+            logToSystem(`Selected schedule: ${scheduleValue.textContent}`);
         });
 
         // Initialize Canvas color
@@ -1057,11 +1075,7 @@
             generateBtn.innerText = 'Generating...';
             clearBtn.disabled = true;
             wrapper.classList.add('generating');
-            
-            scheduleLinear.style.opacity = '0.5';
-            scheduleQuadratic.style.opacity = '0.5';
-            scheduleLinear.style.cursor = 'not-allowed';
-            scheduleQuadratic.style.cursor = 'not-allowed';
+            scheduleSlider.disabled = true;
             
             progressContainer.style.display = 'block';
             progressBarFill.style.width = '0%';
@@ -1170,10 +1184,7 @@
             statusDot.className = 'predict-dot idle';
             statusText.innerText = statusTextStr;
 
-            scheduleLinear.style.opacity = '1';
-            scheduleQuadratic.style.opacity = '1';
-            scheduleLinear.style.cursor = 'pointer';
-            scheduleQuadratic.style.cursor = 'pointer';
+            scheduleSlider.disabled = false;
 
             if (activeEventSource) {
                 activeEventSource.close();

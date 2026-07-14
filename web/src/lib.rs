@@ -46,26 +46,31 @@ impl GeneratorWasm {
         let class_ids = Tensor::<NdArray, 1, Int>::from_ints([class_id as i32], &device);
         
         let mut steps = Vec::new();
-        if schedule == "quadratic" {
-            // Quadratic spacing: allocates more steps at lower timesteps (closer to t=0).
-            // This is ideal for diffusion models because the final denoising steps are critical
-            // for resolving high-frequency details, sharp lines, and removing background noise.
-            if num_steps > 1 {
-                for i in (0..num_steps).rev() {
-                    let x = i as f32 / (num_steps - 1) as f32;
-                    let t = (x * x * 999.0).round() as usize;
-                    steps.push(t);
-                }
-            } else {
-                steps.push(0);
-            }
-        } else {
+        if schedule == "linear" {
             // Linear spacing: spreads steps evenly across the 0..1000 range.
             // Good for generic sampling, but can suffer from lack of detail refinement
             // when generating with very few total steps.
             let step_ratio = 1000 / num_steps;
             for i in (0..num_steps).rev() {
                 steps.push(i * step_ratio);
+            }
+        } else {
+            // Parse power exponent (defaults to 2.0 for quadratic)
+            let rho: f32 = match schedule.as_str() {
+                "quadratic" => 2.0,
+                other => other.parse::<f32>().unwrap_or(2.0),
+            };
+            // Polynomial/Power spacing: concentrates steps near t=0 using exponent rho.
+            // Concentrating more steps at lower timesteps is ideal for diffusion models because
+            // the final denoising steps are critical for resolving high-frequency details.
+            if num_steps > 1 {
+                for i in (0..num_steps).rev() {
+                    let x = i as f32 / (num_steps - 1) as f32;
+                    let t = (x.powf(rho) * 999.0).round() as usize;
+                    steps.push(t);
+                }
+            } else {
+                steps.push(0);
             }
         }
         

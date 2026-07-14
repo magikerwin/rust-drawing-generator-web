@@ -49,6 +49,7 @@ struct GenerateQuery {
     class_id: usize,
     steps: Option<usize>,
     schedule: Option<String>,
+    sampler: Option<String>,
 }
 
 /// SSE step payload structure
@@ -78,11 +79,12 @@ async fn generate_handler(
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     let steps = query.steps.unwrap_or(20).clamp(5, 100);
     let schedule = query.schedule.as_deref().unwrap_or("linear");
+    let sampler = query.sampler.as_deref().unwrap_or("ddim");
     
-    // Perform progressive DDIM generation on the CPU
+    // Perform progressive generation on the CPU
     let history = {
         let model = state.model.lock().unwrap();
-        generate_image_steps(&model, &state.device, query.class_id, steps, schedule)
+        generate_image_steps(&model, &state.device, query.class_id, steps, schedule, sampler)
     };
 
     let total = history.len();
@@ -225,7 +227,7 @@ async fn main() {
 
         println!("Generating drawing for class: '{}' (class ID: {}) using 20 DDIM steps...", class_name, class_id);
         
-        let history = generate_image_steps(&model, &device, class_id, 20, "linear");
+        let history = generate_image_steps(&model, &device, class_id, 20, "linear", "ddim");
         
         // Render final drawing as ASCII art
         println!("\nGenerated Output:");

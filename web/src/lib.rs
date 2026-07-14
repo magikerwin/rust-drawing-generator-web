@@ -22,12 +22,13 @@ pub struct GeneratorWasm {
     class_ids: Tensor<NdArray, 1, Int>,
     steps: Vec<usize>,
     current_step_idx: usize,
+    sampler: String,
 }
 
 #[wasm_bindgen]
 impl GeneratorWasm {
     #[wasm_bindgen(constructor)]
-    pub fn new(model_bytes: &[u8], num_classes: usize, class_id: usize, num_steps: usize, schedule: String) -> Result<GeneratorWasm, JsValue> {
+    pub fn new(model_bytes: &[u8], num_classes: usize, class_id: usize, num_steps: usize, schedule: String, sampler: String) -> Result<GeneratorWasm, JsValue> {
         console_error_panic_hook::set_once();
         let device = Default::default();
         
@@ -82,6 +83,7 @@ impl GeneratorWasm {
             class_ids,
             steps,
             current_step_idx: 0,
+            sampler,
         })
     }
     
@@ -122,9 +124,27 @@ impl GeneratorWasm {
         };
         
         let timesteps = Tensor::<NdArray, 1>::from_floats([t as f32], &self.device);
+        let epsilon_1 = self.model.unet.forward(self.x_t.clone(), timesteps, self.class_ids.clone());
         
-        let predicted_noise = self.model.unet.forward(self.x_t.clone(), timesteps, self.class_ids.clone());
-        self.x_t = self.scheduler.step(self.x_t.clone(), predicted_noise, t, prev_t);
+        if self.sampler == "heun" && prev_t.is_some() {
+            let prev_t_val = prev_t.unwrap();
+            
+            // 1. Predictor step
+            let x_prev_pred = self.scheduler.step(self.x_t.clone(), epsilon_1.clone(), t, prev_t);
+            
+            // 2. Corrector step (evaluate noise at predicted next state)
+            let prev_timesteps = Tensor::<NdArray, 1>::from_floats([prev_t_val as f32], &self.device);
+            let epsilon_2 = self.model.unet.forward(x_prev_pred, prev_timesteps, self.class_ids.clone());
+            
+            // Average predicted noise
+            let epsilon_avg = (epsilon_1 + epsilon_2).mul_scalar(0.5);
+            
+            // Recompute final step using averaged noise
+            self.x_t = self.scheduler.step(self.x_t.clone(), epsilon_avg, t, prev_t);
+        } else {
+            // Standard 1st-Order DDIM step (Euler method equivalent)
+            self.x_t = self.scheduler.step(self.x_t.clone(), epsilon_1, t, prev_t);
+        }
         
         self.current_step_idx += 1;
         
@@ -149,7 +169,7 @@ mod tests {
         let bytes = recorder.record(model.into_record(), ()).unwrap();
         
         // Create GeneratorWasm from those bytes
-        let mut generator = GeneratorWasm::new(&bytes, 10, 3, 5, "linear".to_string()).unwrap();
+        let mut generator = GeneratorWasm::new(&bytes, 10, 3, 5, "linear".to_string(), "ddim".to_string()).unwrap();
         assert_eq!(generator.total_steps(), 5);
         assert_eq!(generator.current_step(), 0);
         assert!(!generator.is_complete());

@@ -37,6 +37,7 @@ pub fn generate_image_steps(
     class_id: usize,
     num_steps: usize,
     schedule: &str,
+    sampler: &str,
 ) -> Vec<Vec<f32>> {
     let scheduler = model_shared::DDIMScheduler::new(1000, 1e-4, 0.02);
     
@@ -84,7 +85,7 @@ pub fn generate_image_steps(
     // Push the initial noise state
     history.push(tensor_to_pixels(x_t.clone()));
     
-    // DDIM Denoising Loop
+    // Sampler Denoising Loop
     for i in 0..steps.len() {
         let t = steps[i];
         let prev_t = if i + 1 < steps.len() {
@@ -94,12 +95,27 @@ pub fn generate_image_steps(
         };
         
         let timesteps = Tensor::<NdArray, 1>::from_floats([t as f32], device);
+        let epsilon_1 = model.unet.forward(x_t.clone(), timesteps, class_ids.clone());
         
-        // Predict noise using the U-Net model
-        let predicted_noise = model.unet.forward(x_t.clone(), timesteps, class_ids.clone());
-        
-        // Denoise one step
-        x_t = scheduler.step(x_t, predicted_noise, t, prev_t);
+        if sampler == "heun" && prev_t.is_some() {
+            let prev_t_val = prev_t.unwrap();
+            
+            // 1. Predictor step
+            let x_prev_pred = scheduler.step(x_t.clone(), epsilon_1.clone(), t, prev_t);
+            
+            // 2. Corrector step (evaluate noise at predicted next state)
+            let prev_timesteps = Tensor::<NdArray, 1>::from_floats([prev_t_val as f32], device);
+            let epsilon_2 = model.unet.forward(x_prev_pred, prev_timesteps, class_ids.clone());
+            
+            // Average predicted noise
+            let epsilon_avg = (epsilon_1 + epsilon_2).mul_scalar(0.5);
+            
+            // Recompute final step using averaged noise
+            x_t = scheduler.step(x_t, epsilon_avg, t, prev_t);
+        } else {
+            // Standard DDIM step
+            x_t = scheduler.step(x_t, epsilon_1, t, prev_t);
+        }
         
         // Push intermediate drawing state
         history.push(tensor_to_pixels(x_t.clone()));
@@ -143,7 +159,7 @@ mod tests {
         let model = Model::<NdArray>::new(&device, 10);
         
         // Generate with 5 steps for test performance
-        let history = generate_image_steps(&model, &device, 3, 5, "linear");
+        let history = generate_image_steps(&model, &device, 3, 5, "linear", "ddim");
         assert_eq!(history.len(), 6); // 1 initial noise state + 5 denoising steps
         assert_eq!(history[0].len(), 784);
     }

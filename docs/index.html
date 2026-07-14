@@ -606,6 +606,16 @@
 
                     <div class="setting-row">
                         <label class="setting-label">
+                            <span>Sampler Algorithm</span>
+                        </label>
+                        <div class="tabs" style="align-self: flex-start; background: rgba(0,0,0,0.2); padding: 4px; border-radius: 20px; border: 1px solid var(--border-color); width: fit-content;">
+                            <button type="button" class="tab-btn active" id="samplerDdim" style="font-size: 0.75rem; padding: 4px 12px; border-radius: 15px;">DDIM (1st-Order)</button>
+                            <button type="button" class="tab-btn" id="samplerHeun" style="font-size: 0.75rem; padding: 4px 12px; border-radius: 15px;">Heun (2nd-Order)</button>
+                        </div>
+                    </div>
+
+                    <div class="setting-row">
+                        <label class="setting-label">
                             <span>Denoising Schedule (Power)</span>
                             <span class="slider-value" id="scheduleValue" style="color: var(--accent-glow);">Linear (1.0)</span>
                         </label>
@@ -697,6 +707,8 @@
         const stepsValue = document.getElementById('stepsValue');
         const scheduleSlider = document.getElementById('scheduleSlider');
         const scheduleValue = document.getElementById('scheduleValue');
+        const samplerDdim = document.getElementById('samplerDdim');
+        const samplerHeun = document.getElementById('samplerHeun');
         
         const progressContainer = document.getElementById('progressContainer');
         const progressText = document.getElementById('progressText');
@@ -725,6 +737,7 @@
         let selectedClassIndex = 0;
         let isGenerating = false;
         let selectedSchedule = 'linear';
+        let selectedSampler = 'ddim';
         
         let wasmModule = null;
         let weightsCache = {};
@@ -771,6 +784,22 @@
             selectedSchedule = getScheduleParam(scheduleSlider.value);
             updateScheduleLabel(scheduleSlider.value);
             logToSystem(`Selected schedule: ${scheduleValue.textContent}`);
+        });
+
+        // Sampler Selection Update
+        samplerDdim.addEventListener('click', () => {
+            if (isGenerating) return;
+            selectedSampler = 'ddim';
+            samplerDdim.classList.add('active');
+            samplerHeun.classList.remove('active');
+            logToSystem('Selected sampler: DDIM (1st-Order)');
+        });
+        samplerHeun.addEventListener('click', () => {
+            if (isGenerating) return;
+            selectedSampler = 'heun';
+            samplerHeun.classList.add('active');
+            samplerDdim.classList.remove('active');
+            logToSystem('Selected sampler: Heun (2nd-Order)');
         });
 
         // Initialize Canvas color
@@ -1076,6 +1105,10 @@
             clearBtn.disabled = true;
             wrapper.classList.add('generating');
             scheduleSlider.disabled = true;
+            samplerDdim.style.opacity = '0.5';
+            samplerHeun.style.opacity = '0.5';
+            samplerDdim.style.cursor = 'not-allowed';
+            samplerHeun.style.cursor = 'not-allowed';
             
             progressContainer.style.display = 'block';
             progressBarFill.style.width = '0%';
@@ -1094,7 +1127,7 @@
                 statusDot.className = 'predict-dot loading';
                 statusText.innerText = 'Server generating...';
 
-                const sseUrl = `/api/generate?class_id=${classId}&steps=${steps}&schedule=${selectedSchedule}`;
+                const sseUrl = `/api/generate?class_id=${classId}&steps=${steps}&schedule=${selectedSchedule}&sampler=${selectedSampler}`;
                 activeEventSource = new EventSource(sseUrl);
 
                 activeEventSource.onmessage = (e) => {
@@ -1135,7 +1168,7 @@
 
                     const numClasses = appConfig.classes.length;
                     logToSystem('Initializing WASM Diffusion Generator...');
-                    const generator = new wasmModule.GeneratorWasm(weightsCache[dataset], numClasses, classId, steps, selectedSchedule);
+                    const generator = new wasmModule.GeneratorWasm(weightsCache[dataset], numClasses, classId, steps, selectedSchedule, selectedSampler);
 
                     // Show initial noise
                     const initNoise = generator.get_current_pixels();
@@ -1185,6 +1218,10 @@
             statusText.innerText = statusTextStr;
 
             scheduleSlider.disabled = false;
+            samplerDdim.style.opacity = '1';
+            samplerHeun.style.opacity = '1';
+            samplerDdim.style.cursor = 'pointer';
+            samplerHeun.style.cursor = 'pointer';
 
             if (activeEventSource) {
                 activeEventSource.close();

@@ -22,6 +22,7 @@ use axum::{
 use axum::response::sse::{Event, Sse};
 use futures_util::stream::{self, Stream};
 use std::sync::Arc;
+use tower_http::services::ServeDir;
 use std::convert::Infallible;
 use std::time::Duration;
 use serde::{Deserialize, Serialize};
@@ -47,6 +48,7 @@ struct AppState {
 struct GenerateQuery {
     class_id: usize,
     steps: Option<usize>,
+    schedule: Option<String>,
 }
 
 /// SSE step payload structure
@@ -75,11 +77,12 @@ async fn generate_handler(
     Query(query): Query<GenerateQuery>,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     let steps = query.steps.unwrap_or(20).clamp(5, 100);
+    let schedule = query.schedule.as_deref().unwrap_or("linear");
     
     // Perform progressive DDIM generation on the CPU
     let history = {
         let model = state.model.lock().unwrap();
-        generate_image_steps(&model, &state.device, query.class_id, steps)
+        generate_image_steps(&model, &state.device, query.class_id, steps, schedule)
     };
 
     let total = history.len();
@@ -185,6 +188,7 @@ async fn main() {
             .route("/weights-version.txt", get(weights_version_handler))
             .route("/api/generate", get(generate_handler))
             .route("/api/config", get(config_handler))
+            .fallback_service(ServeDir::new("docs"))
             .with_state(state);
 
         // Bind TCP listener to port 3000
@@ -221,7 +225,7 @@ async fn main() {
 
         println!("Generating drawing for class: '{}' (class ID: {}) using 20 DDIM steps...", class_name, class_id);
         
-        let history = generate_image_steps(&model, &device, class_id, 20);
+        let history = generate_image_steps(&model, &device, class_id, 20, "linear");
         
         // Render final drawing as ASCII art
         println!("\nGenerated Output:");

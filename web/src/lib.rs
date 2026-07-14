@@ -27,7 +27,7 @@ pub struct GeneratorWasm {
 #[wasm_bindgen]
 impl GeneratorWasm {
     #[wasm_bindgen(constructor)]
-    pub fn new(model_bytes: &[u8], num_classes: usize, class_id: usize, num_steps: usize) -> Result<GeneratorWasm, JsValue> {
+    pub fn new(model_bytes: &[u8], num_classes: usize, class_id: usize, num_steps: usize, schedule: String) -> Result<GeneratorWasm, JsValue> {
         console_error_panic_hook::set_once();
         let device = Default::default();
         
@@ -46,9 +46,27 @@ impl GeneratorWasm {
         let class_ids = Tensor::<NdArray, 1, Int>::from_ints([class_id as i32], &device);
         
         let mut steps = Vec::new();
-        let step_ratio = 1000 / num_steps;
-        for i in (0..num_steps).rev() {
-            steps.push(i * step_ratio);
+        if schedule == "quadratic" {
+            // Quadratic spacing: allocates more steps at lower timesteps (closer to t=0).
+            // This is ideal for diffusion models because the final denoising steps are critical
+            // for resolving high-frequency details, sharp lines, and removing background noise.
+            if num_steps > 1 {
+                for i in (0..num_steps).rev() {
+                    let x = i as f32 / (num_steps - 1) as f32;
+                    let t = (x * x * 999.0).round() as usize;
+                    steps.push(t);
+                }
+            } else {
+                steps.push(0);
+            }
+        } else {
+            // Linear spacing: spreads steps evenly across the 0..1000 range.
+            // Good for generic sampling, but can suffer from lack of detail refinement
+            // when generating with very few total steps.
+            let step_ratio = 1000 / num_steps;
+            for i in (0..num_steps).rev() {
+                steps.push(i * step_ratio);
+            }
         }
         
         Ok(Self {
@@ -126,7 +144,7 @@ mod tests {
         let bytes = recorder.record(model.into_record(), ()).unwrap();
         
         // Create GeneratorWasm from those bytes
-        let mut generator = GeneratorWasm::new(&bytes, 10, 3, 5).unwrap();
+        let mut generator = GeneratorWasm::new(&bytes, 10, 3, 5, "linear".to_string()).unwrap();
         assert_eq!(generator.total_steps(), 5);
         assert_eq!(generator.current_step(), 0);
         assert!(!generator.is_complete());

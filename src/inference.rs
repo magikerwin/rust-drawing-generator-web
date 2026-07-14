@@ -36,6 +36,7 @@ pub fn generate_image_steps(
     device: &<NdArray as Backend>::Device,
     class_id: usize,
     num_steps: usize,
+    schedule: &str,
 ) -> Vec<Vec<f32>> {
     let scheduler = model_shared::DDIMScheduler::new(1000, 1e-4, 0.02);
     
@@ -48,11 +49,29 @@ pub fn generate_image_steps(
     
     let class_ids = Tensor::<NdArray, 1, Int>::from_ints([class_id as i32], device);
     
-    // Generate skipped timesteps for DDIM
+    // Generate skipped timesteps for DDIM based on schedule type
     let mut steps = Vec::new();
-    let step_ratio = 1000 / num_steps;
-    for i in (0..num_steps).rev() {
-        steps.push(i * step_ratio);
+    if schedule == "quadratic" {
+        // Quadratic spacing: allocates more steps at lower timesteps (closer to t=0).
+        // This is ideal for diffusion models because the final denoising steps are critical
+        // for resolving high-frequency details, sharp lines, and removing background noise.
+        if num_steps > 1 {
+            for i in (0..num_steps).rev() {
+                let x = i as f32 / (num_steps - 1) as f32;
+                let t = (x * x * 999.0).round() as usize;
+                steps.push(t);
+            }
+        } else {
+            steps.push(0);
+        }
+    } else {
+        // Linear spacing: spreads steps evenly across the 0..1000 range.
+        // Good for generic sampling, but can suffer from lack of detail refinement
+        // when generating with very few total steps.
+        let step_ratio = 1000 / num_steps;
+        for i in (0..num_steps).rev() {
+            steps.push(i * step_ratio);
+        }
     }
     
     let mut history = Vec::with_capacity(steps.len() + 1);
@@ -119,7 +138,7 @@ mod tests {
         let model = Model::<NdArray>::new(&device, 10);
         
         // Generate with 5 steps for test performance
-        let history = generate_image_steps(&model, &device, 3, 5);
+        let history = generate_image_steps(&model, &device, 3, 5, "linear");
         assert_eq!(history.len(), 6); // 1 initial noise state + 5 denoising steps
         assert_eq!(history[0].len(), 784);
     }

@@ -28,7 +28,7 @@
 ## ✨ Features
 
 - **Conditional U-Net Architecture** — Sinusoidal time embedding module, class conditioning embedding module, skip connections, and residual blocks.
-- **DDIM Scheduler Denoising** — Accelerated reverse sampling configured for 20-50 steps (down from 1000 DDPM steps) to run under 150ms on standard CPUs.
+- **DDIM Scheduler Denoising** — Accelerated reverse sampling supporting both **Linear** and **Quadratic** runtime spacing schedules (configured for 20-50 steps, down from 1000 DDPM steps) running under 150ms on standard CPUs.
 - **Progressive Denoising Animation** — Visual progressive rendering showing the drawing emerge frame-by-frame from pure Gaussian noise.
 - **Dual Inference Modes** — Server-side Axum streaming via Server-Sent Events (SSE) and client-side WebAssembly local browser execution.
 - **Fully in Rust** — Training, scheduler, inference engine, and web frontend in a unified workspace.
@@ -204,6 +204,15 @@ Start the browser-based generator UI backed by the Rust Axum server streaming de
   cargo run --release -- --serve --dataset quickdraw
   ```
   Open **[http://127.0.0.1:3000](http://127.0.0.1:3000)** to generate doodles (25 classes).
+
+#### GET `/api/generate` SSE Stream
+
+The Axum server exposes a GET endpoint `/api/generate` that streams the progressive denoising steps using Server-Sent Events (SSE):
+
+- **Query Parameters**:
+  - `class_id` (integer, required): The target class ID to generate.
+  - `steps` (integer, optional, default: `20`): Number of denoising steps (clamped between `5` and `100`).
+  - `schedule` (string, optional, default: `"linear"`): Denoising schedule type: `"linear"` or `"quadratic"`.
 
 ---
 

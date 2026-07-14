@@ -604,6 +604,16 @@
                         </div>
                     </div>
 
+                    <div class="setting-row">
+                        <label class="setting-label">
+                            <span>Denoising Schedule</span>
+                        </label>
+                        <div class="tabs" style="align-self: flex-start; background: rgba(0,0,0,0.2); padding: 4px; border-radius: 20px; border: 1px solid var(--border-color); width: fit-content;">
+                            <button type="button" class="tab-btn active" id="scheduleLinear" style="font-size: 0.75rem; padding: 4px 12px; border-radius: 15px;">Linear</button>
+                            <button type="button" class="tab-btn" id="scheduleQuadratic" style="font-size: 0.75rem; padding: 4px 12px; border-radius: 15px;">Quadratic</button>
+                        </div>
+                    </div>
+
                     <!-- Progress Bar (Visible during generation) -->
                     <div id="progressContainer" style="display: none;">
                         <div class="setting-label" style="margin-bottom: 6px;">
@@ -679,6 +689,8 @@
 
         const stepsSlider = document.getElementById('stepsSlider');
         const stepsValue = document.getElementById('stepsValue');
+        const scheduleLinear = document.getElementById('scheduleLinear');
+        const scheduleQuadratic = document.getElementById('scheduleQuadratic');
         
         const progressContainer = document.getElementById('progressContainer');
         const progressText = document.getElementById('progressText');
@@ -706,6 +718,7 @@
         let serverAvailable = false;
         let selectedClassIndex = 0;
         let isGenerating = false;
+        let selectedSchedule = 'linear';
         
         let wasmModule = null;
         let weightsCache = {};
@@ -724,6 +737,22 @@
         // Step Slider Update
         stepsSlider.addEventListener('input', () => {
             stepsValue.textContent = stepsSlider.value;
+        });
+
+        // Schedule Selection Update
+        scheduleLinear.addEventListener('click', () => {
+            if (isGenerating) return;
+            selectedSchedule = 'linear';
+            scheduleLinear.classList.add('active');
+            scheduleQuadratic.classList.remove('active');
+            logToSystem('Selected schedule: Linear');
+        });
+        scheduleQuadratic.addEventListener('click', () => {
+            if (isGenerating) return;
+            selectedSchedule = 'quadratic';
+            scheduleQuadratic.classList.add('active');
+            scheduleLinear.classList.remove('active');
+            logToSystem('Selected schedule: Quadratic');
         });
 
         // Initialize Canvas color
@@ -1029,6 +1058,11 @@
             clearBtn.disabled = true;
             wrapper.classList.add('generating');
             
+            scheduleLinear.style.opacity = '0.5';
+            scheduleQuadratic.style.opacity = '0.5';
+            scheduleLinear.style.cursor = 'not-allowed';
+            scheduleQuadratic.style.cursor = 'not-allowed';
+            
             progressContainer.style.display = 'block';
             progressBarFill.style.width = '0%';
             progressText.innerText = `0% (Step 0/${steps})`;
@@ -1046,7 +1080,7 @@
                 statusDot.className = 'predict-dot loading';
                 statusText.innerText = 'Server generating...';
 
-                const sseUrl = `/api/generate?class_id=${classId}&steps=${steps}`;
+                const sseUrl = `/api/generate?class_id=${classId}&steps=${steps}&schedule=${selectedSchedule}`;
                 activeEventSource = new EventSource(sseUrl);
 
                 activeEventSource.onmessage = (e) => {
@@ -1087,7 +1121,7 @@
 
                     const numClasses = appConfig.classes.length;
                     logToSystem('Initializing WASM Diffusion Generator...');
-                    const generator = new wasmModule.GeneratorWasm(weightsCache[dataset], numClasses, classId, steps);
+                    const generator = new wasmModule.GeneratorWasm(weightsCache[dataset], numClasses, classId, steps, selectedSchedule);
 
                     // Show initial noise
                     const initNoise = generator.get_current_pixels();
@@ -1135,6 +1169,11 @@
             wrapper.classList.remove('generating');
             statusDot.className = 'predict-dot idle';
             statusText.innerText = statusTextStr;
+
+            scheduleLinear.style.opacity = '1';
+            scheduleQuadratic.style.opacity = '1';
+            scheduleLinear.style.cursor = 'pointer';
+            scheduleQuadratic.style.cursor = 'pointer';
 
             if (activeEventSource) {
                 activeEventSource.close();

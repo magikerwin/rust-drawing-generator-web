@@ -129,18 +129,49 @@ impl GeneratorWasm {
         if self.sampler == "heun" && prev_t.is_some() {
             let prev_t_val = prev_t.unwrap();
             
-            // 1. Predictor step
-            let x_prev_pred = self.scheduler.step(self.x_t.clone(), epsilon_1.clone(), t, prev_t);
+            // --- EDUCATIONAL: HEUN'S 2ND-ORDER SAMPLER (PREDICTOR-CORRECTOR METHOD) ---
+            // While DDIM works as a 1st-order solver (Euler method) that takes steps along the 
+            // initial derivative (epsilon_1), Heun's method computes a 2nd-order correction step 
+            // to drastically decrease numerical approximation errors along the ODE trajectory.
+            // 
+            // Note: Since noise scaling factors (alphas/betas) change non-linearly at each step,
+            // we cannot simply average the predicted noise vectors directly. We must compute the
+            // predicted clean states (x0) at each timestep using their respective scaling factors,
+            // average the states and noise, and then project the final integration.
             
-            // 2. Corrector step (evaluate noise at predicted next state)
+            let alpha_t = self.scheduler.alphas_cumprod[t];
+            let alpha_prev = self.scheduler.alphas_cumprod[prev_t_val];
+            let beta_t = 1.0 - alpha_t;
+            let beta_prev = 1.0 - alpha_prev;
+            
+            // 1. PREDICT CLEAN x0_1:
+            // Predict the clean image (x0_1) from current state x_t and current noise (epsilon_1)
+            let x0_1 = (self.x_t.clone() - epsilon_1.clone().mul_scalar(beta_t.sqrt()))
+                .div_scalar(alpha_t.sqrt());
+                
+            // 2. PREDICTOR STEP (Euler Step to next state):
+            // Project the state forward to an intermediate state (x_prev_pred) at the next timestep (prev_t)
+            let x_prev_pred = x0_1.clone().mul_scalar(alpha_prev.sqrt()) + epsilon_1.clone().mul_scalar(beta_prev.sqrt());
+            
+            // 3. CORRECTOR STEP:
+            // Evaluate the model's U-Net again at the estimated intermediate state (x_prev_pred)
+            // at the future timestep (prev_t) to get the predicted future noise (epsilon_2).
             let prev_timesteps = Tensor::<NdArray, 1>::from_floats([prev_t_val as f32], &self.device);
-            let epsilon_2 = self.model.unet.forward(x_prev_pred, prev_timesteps, self.class_ids.clone());
+            let epsilon_2 = self.model.unet.forward(x_prev_pred.clone(), prev_timesteps, self.class_ids.clone());
             
-            // Average predicted noise
+            // 4. PREDICT CLEAN x0_2:
+            // Predict the clean image (x0_2) at the future timestep (prev_t) using epsilon_2
+            let x0_2 = (x_prev_pred - epsilon_2.clone().mul_scalar(beta_prev.sqrt()))
+                .div_scalar(alpha_prev.sqrt());
+                
+            // 5. AVERAGING:
+            // Average the predicted clean states (x0) and noise directions (epsilon)
+            let x0_avg = (x0_1 + x0_2).mul_scalar(0.5);
             let epsilon_avg = (epsilon_1 + epsilon_2).mul_scalar(0.5);
             
-            // Recompute final step using averaged noise
-            self.x_t = self.scheduler.step(self.x_t.clone(), epsilon_avg, t, prev_t);
+            // 6. FINAL INTEGRATION:
+            // Integrate using the averaged clean state and noise scaled by the target timestep factors
+            self.x_t = x0_avg.mul_scalar(alpha_prev.sqrt()) + epsilon_avg.mul_scalar(beta_prev.sqrt());
         } else {
             // Standard 1st-Order DDIM step (Euler method equivalent)
             self.x_t = self.scheduler.step(self.x_t.clone(), epsilon_1, t, prev_t);

@@ -203,58 +203,14 @@ mod tests {
     }
 
     #[test]
-    fn test_quickdraw_dataset_loading() {
-        use std::fs;
-        let cache_dir = Path::new("./target/quickdraw_dataset");
-        fs::create_dir_all(cache_dir).ok();
-
-        // Construct a helper to generate minimal valid mock .npy bytes representing N samples
-        let make_mock_npy = |num_samples: usize| -> Vec<u8> {
-            let mut npy_data = Vec::new();
-            npy_data.extend_from_slice(b"\x93NUMPY\x01\x00");
-            let header_str = format!("{{'descr': '<u1', 'fortran_order': False, 'shape': ({}, 784)}}", num_samples);
-            let mut header_bytes = header_str.as_bytes().to_vec();
-            while (10 + header_bytes.len() + 1) % 64 != 0 {
-                header_bytes.push(b' ');
-            }
-            header_bytes.push(b'\n');
-            let header_len = header_bytes.len();
-            npy_data.extend_from_slice(&(header_len as u16).to_le_bytes());
-            npy_data.extend_from_slice(&header_bytes);
-            npy_data.extend(std::iter::repeat(128).take(num_samples * 784));
-            npy_data
-        };
-
-        // RAII Cleanup Guard to ensure files are deleted even if the test panics
-        struct CleanupGuard {
-            paths: Vec<std::path::PathBuf>,
-        }
-        impl Drop for CleanupGuard {
-            fn drop(&mut self) {
-                for path in &self.paths {
-                    let _ = fs::remove_file(path);
-                }
-            }
-        }
-
-        let mut guard = CleanupGuard { paths: Vec::new() };
-        for class_name in QUICKDRAW_CLASSES.iter() {
-            let path = cache_dir.join(format!("{}.npy", class_name));
-            if !path.exists() {
-                let data = make_mock_npy(TOTAL_SAMPLES_PER_CLASS);
-                fs::write(&path, data).unwrap();
-                guard.paths.push(path);
-            }
-        }
-
-        // Test training set construction (request 5 samples per class)
-        let train_dataset = QuickDrawDataset::new(true, 5);
-        assert_eq!(train_dataset.len(), QUICKDRAW_CLASSES.len() * 5);
-        let sample = train_dataset.get(0).unwrap();
-        assert_eq!(sample.label, 0);
-
-        // Test validation set construction (request 2 samples per class)
-        let valid_dataset = QuickDrawDataset::new(false, 2);
-        assert_eq!(valid_dataset.len(), QUICKDRAW_CLASSES.len() * 2);
+    fn test_quickdraw_constants() {
+        // Verify class count and partition sizes are consistent.
+        // NOTE: We do NOT write mock files to the training dataset cache directory.
+        // The training cache (./target/quickdraw_dataset/) must only ever contain
+        // real downloaded .npy files from Google Cloud Storage.
+        assert_eq!(QUICKDRAW_CLASSES.len(), 25);
+        assert_eq!(TOTAL_SAMPLES_PER_CLASS, TRAIN_SAMPLES_PER_CLASS + VAL_SAMPLES_PER_CLASS);
+        assert!(TRAIN_SAMPLES_PER_CLASS > VAL_SAMPLES_PER_CLASS,
+            "Training set should be larger than validation set");
     }
 }

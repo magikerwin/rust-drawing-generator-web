@@ -30,6 +30,8 @@ pub struct TrainingConfig {
     #[config(default = 42)]
     pub seed: u64,              // Seed for random number generators (reproducibility)
     pub optimizer: AdamConfig,  // Optimizer configuration (e.g. learning rate, betas)
+    #[config(default = 2e-4)]
+    pub learning_rate: f64,     // Static learning rate for training
 }
 
 /// Orchestrates the training pipeline. Decoupled from specific datasets using generic types.
@@ -99,7 +101,7 @@ pub fn train<B: AutodiffBackend, D1, D2>(
         .build(
             Model::<B>::new(&device, num_classes), // Instantiate the Model wrapping UNet
             config.optimizer.init(),  // Initialize the optimizer state
-            2e-4,                    // Learning rate for training the diffusion model
+            config.learning_rate,    // Learning rate for training the diffusion model
         );
 
     // Start the training and validation loops

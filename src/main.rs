@@ -139,6 +139,11 @@ async fn main() {
         .and_then(|pos| args.get(pos + 1))
         .and_then(|s| s.parse::<usize>().ok());
 
+    let lr_arg = args.iter()
+        .position(|arg| arg == "--lr")
+        .and_then(|pos| args.get(pos + 1))
+        .and_then(|s| s.parse::<f64>().ok());
+
     let num_classes = if dataset_arg == "quickdraw" {
         quickdraw::QUICKDRAW_CLASSES.len()
     } else if dataset_arg == "emnist" {
@@ -246,6 +251,9 @@ async fn main() {
         let mut config = TrainingConfig::new(AdamConfig::new());
         if let Some(epochs) = epochs_arg {
             config.num_epochs = epochs;
+        }
+        if let Some(lr) = lr_arg {
+            config.learning_rate = lr;
         }
 
         if dataset_arg == "quickdraw" {

@@ -113,6 +113,12 @@ To specify the number of training epochs (defaults to 5):
 cargo run --release -- --epochs 25
 ```
 
+To specify the training learning rate (defaults to 2e-4):
+
+```sh
+cargo run --release -- --lr 0.0003
+```
+
 To train on the **EMNIST Letters** dataset (26 classes):
 
 ```sh

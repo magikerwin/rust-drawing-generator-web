@@ -108,25 +108,25 @@ To train on your GPU (`Wgpu` backend):
 cargo run --release -- --gpu
 ```
 
-To specify the number of training epochs (defaults to 5):
-
-```sh
-cargo run --release -- --epochs 25
-```
-
-To specify the training learning rate (defaults to 2e-4):
-
-```sh
-cargo run --release -- --lr 0.0003
-```
-
-To train using **Flow Matching (Rectified Flow)** instead of standard DDPM:
-
-```sh
-cargo run --release -- --prediction-type velocity
-```
+#### Training Configuration Flags:
+*   `--epochs <num>`: Customize the number of epochs to train (defaults to 5).
+*   `--lr <num>`: Customize the learning rate (defaults to 2e-4).
+*   `--prediction-type <noise|velocity>`: Choose the target type (`noise` for DDPM/DDIM, `velocity` for Flow Matching).
 
 *(Note: These flags can be combined, for example: `cargo run --release -- --epochs 40 --lr 0.0003 --prediction-type velocity --gpu`)*
+
+---
+
+#### 💡 Hyperparameter Recommendations & Training Guides
+
+| Objective | Paradigm | Recommended Command |
+| :--- | :--- | :--- |
+| **Quick Run (~10 Mins)** | DDPM (Noise) | `cargo run --release -- --epochs 6 --lr 2.5e-4 --prediction-type noise --gpu` |
+| **Quick Run (~10 Mins)** | Flow Matching | `cargo run --release -- --epochs 6 --lr 8e-4 --prediction-type velocity --gpu` |
+| **Fully Converged** | DDPM (Noise) | `cargo run --release -- --epochs 15 --lr 2e-4 --prediction-type noise --gpu` |
+| **Fully Converged** | Flow Matching | `cargo run --release -- --epochs 20 --lr 5e-4 --prediction-type velocity --gpu` |
+
+---
 To train on the **EMNIST Letters** dataset (26 classes):
 
 ```sh

@@ -6,7 +6,7 @@ use burn::{
         GroupNorm, GroupNormConfig,
     },
     prelude::*,
-    tensor::activation::sigmoid,
+    tensor::activation::{sigmoid, softmax},
 };
 
 /// Sinusoidal time embedding module to map scalar timesteps to high-dimensional embeddings.
@@ -154,6 +154,62 @@ impl<B: Backend> UNetBlock<B> {
     }
 }
 
+/// Single-head Self-Attention block for low-resolution feature maps (e.g. 7x7 bottleneck).
+/// Learns global spatial relationships with O(N^2) complexity where N = H * W.
+#[derive(Module, Debug)]
+pub struct SelfAttention<B: Backend> {
+    q_proj: Linear<B>,
+    k_proj: Linear<B>,
+    v_proj: Linear<B>,
+    out_proj: Linear<B>,
+    channels: usize,
+}
+
+impl<B: Backend> SelfAttention<B> {
+    pub fn new(device: &B::Device, channels: usize) -> Self {
+        let q_proj = LinearConfig::new(channels, channels).init(device);
+        let k_proj = LinearConfig::new(channels, channels).init(device);
+        let v_proj = LinearConfig::new(channels, channels).init(device);
+        let out_proj = LinearConfig::new(channels, channels).init(device);
+        Self { q_proj, k_proj, v_proj, out_proj, channels }
+    }
+
+    pub fn forward(&self, x: Tensor<B, 4>) -> Tensor<B, 4> {
+        let shape = x.shape();
+        let batch_size = shape.dims[0];
+        let channels = shape.dims[1];
+        let h = shape.dims[2];
+        let w = shape.dims[3];
+        let n = h * w;
+
+        // Flatten spatial dimensions [B, C, H, W] -> [B, C, N] and transpose to [B, N, C]
+        let x_flat = x.clone().reshape([batch_size, channels, n]).swap_dims(1, 2);
+
+        // Project Queries, Keys, and Values: shape [B, N, C]
+        let q = self.q_proj.forward(x_flat.clone());
+        let k = self.k_proj.forward(x_flat.clone());
+        let v = self.v_proj.forward(x_flat);
+
+        // Compute scaled dot-product attention scores: [B, N, N]
+        let k_t = k.swap_dims(1, 2);
+        let scale = (channels as f64).sqrt();
+        let scores = q.matmul(k_t).div_scalar(scale);
+
+        // Softmax normalization across rows: [B, N, N]
+        let attn_map = softmax(scores, 2);
+
+        // Average values weighted by attention map: [B, N, C]
+        let out = attn_map.matmul(v);
+
+        // Project output and swap back to original shape [B, C, H, W]
+        let out = self.out_proj.forward(out);
+        let out = out.swap_dims(1, 2).reshape([batch_size, channels, h, w]);
+
+        // Residual skip connection
+        x + out
+    }
+}
+
 /// A lightweight U-Net architecture for generating 28x28 drawings.
 #[derive(Module, Debug)]
 pub struct UNet<B: Backend> {
@@ -169,10 +225,12 @@ pub struct UNet<B: Backend> {
     
     // Bottleneck
     bottleneck_block: UNetBlock<B>,
+    bottleneck_attn: SelfAttention<B>,
     
     // Decoder (Upsampling)
     up1: ConvTranspose2d<B>,
     up_block1: UNetBlock<B>,
+    decoder_attn: SelfAttention<B>,
     up2: ConvTranspose2d<B>,
     up_block2: UNetBlock<B>,
     
@@ -206,6 +264,7 @@ impl<B: Backend> UNet<B> {
             .init(device);
         
         let bottleneck_block = UNetBlock::new(device, base_dim * 4, base_dim * 4, cond_dim);
+        let bottleneck_attn = SelfAttention::new(device, base_dim * 4);
         
         let up1 = ConvTranspose2dConfig::new([base_dim * 4, base_dim * 2], [3, 3])
             .with_stride([2, 2])
@@ -214,6 +273,7 @@ impl<B: Backend> UNet<B> {
             .init(device);
         
         let up_block1 = UNetBlock::new(device, base_dim * 4, base_dim * 2, cond_dim);
+        let decoder_attn = SelfAttention::new(device, base_dim * 2);
         
         let up2 = ConvTranspose2dConfig::new([base_dim * 2, base_dim], [3, 3])
             .with_stride([2, 2])
@@ -236,8 +296,10 @@ impl<B: Backend> UNet<B> {
             down_block2,
             downsample2,
             bottleneck_block,
+            bottleneck_attn,
             up1,
             up_block1,
+            decoder_attn,
             up2,
             up_block2,
             conv_out,
@@ -258,16 +320,33 @@ impl<B: Backend> UNet<B> {
         
         let x3 = self.downsample2.forward(x2.clone());
         let x3 = self.bottleneck_block.forward(x3, cond.clone());
+        let x3 = self.bottleneck_attn.forward(x3);
         
         // Decoder
         let u1 = self.up1.forward(x3);
         let u1 = Tensor::cat(vec![u1, x2], 1);
         let u1 = self.up_block1.forward(u1, cond.clone());
+        let u1 = self.decoder_attn.forward(u1);
         
         let u2 = self.up2.forward(u1);
         let u2 = Tensor::cat(vec![u2, x1], 1);
         let u2 = self.up_block2.forward(u2, cond);
         
         self.conv_out.forward(u2)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use burn::backend::NdArray;
+
+    #[test]
+    fn test_self_attention_shapes() {
+        let device = Default::default();
+        let attn = SelfAttention::<NdArray>::new(&device, 32);
+        let input = Tensor::<NdArray, 4>::random([2, 32, 7, 7], burn::tensor::Distribution::Default, &device);
+        let output = attn.forward(input.clone());
+        assert_eq!(output.shape().dims, input.shape().dims);
     }
 }

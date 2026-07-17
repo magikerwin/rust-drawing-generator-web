@@ -780,15 +780,15 @@
         // Prediction target types mapping for static WASM datasets (noise = DDPM, velocity = Flow Matching)
         const datasetPredictionTypes = {
             mnist: 'velocity',
-            emnist: 'noise',
-            quickdraw: 'noise'
+            emnist: 'velocity',
+            quickdraw: 'velocity'
         };
 
         // System state
         let appConfig = {
             dataset: 'mnist',
             classes: mnistClasses,
-            prediction_type: 'noise'
+            prediction_type: 'velocity'
         };
 
         let runMode = 'server'; // 'server' or 'wasm'

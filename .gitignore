@@ -1,5 +1,5 @@
 /target
-target_test/
+/target_test/
 /docs/pkg/
 /docs/*-model.bin
 

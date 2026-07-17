@@ -107,6 +107,12 @@ To train on your GPU (`Wgpu` backend):
 cargo run --release -- --gpu
 ```
 
+To specify the number of training epochs (defaults to 5):
+
+```sh
+cargo run --release -- --epochs 25
+```
+
 To train on the **EMNIST Letters** dataset (26 classes):
 
 ```sh

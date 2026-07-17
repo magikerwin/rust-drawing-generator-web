@@ -134,6 +134,11 @@ async fn main() {
         .map(|s| s.as_str())
         .unwrap_or("mnist");
 
+    let epochs_arg = args.iter()
+        .position(|arg| arg == "--epochs")
+        .and_then(|pos| args.get(pos + 1))
+        .and_then(|s| s.parse::<usize>().ok());
+
     let num_classes = if dataset_arg == "quickdraw" {
         quickdraw::QUICKDRAW_CLASSES.len()
     } else if dataset_arg == "emnist" {
@@ -238,7 +243,10 @@ async fn main() {
         // ==========================================
         // BRANCH C: RUN TRAINING LOOP
         // ==========================================
-        let config = TrainingConfig::new(AdamConfig::new());
+        let mut config = TrainingConfig::new(AdamConfig::new());
+        if let Some(epochs) = epochs_arg {
+            config.num_epochs = epochs;
+        }
 
         if dataset_arg == "quickdraw" {
             let train_dataset = quickdraw::QuickDrawDataset::new(true, quickdraw::TRAIN_SAMPLES_PER_CLASS);

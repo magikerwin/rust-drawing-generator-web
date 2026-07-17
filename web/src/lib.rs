@@ -23,12 +23,21 @@ pub struct GeneratorWasm {
     steps: Vec<usize>,
     current_step_idx: usize,
     sampler: String,
+    prediction_type: String, // "noise" or "velocity"
 }
 
 #[wasm_bindgen]
 impl GeneratorWasm {
     #[wasm_bindgen(constructor)]
-    pub fn new(model_bytes: &[u8], num_classes: usize, class_id: usize, num_steps: usize, schedule: String, sampler: String) -> Result<GeneratorWasm, JsValue> {
+    pub fn new(
+        model_bytes: &[u8],
+        num_classes: usize,
+        class_id: usize,
+        num_steps: usize,
+        schedule: String,
+        sampler: String,
+        prediction_type: Option<String>,
+    ) -> Result<GeneratorWasm, JsValue> {
         console_error_panic_hook::set_once();
         let device = Default::default();
         
@@ -49,8 +58,6 @@ impl GeneratorWasm {
         let mut steps = Vec::new();
         if schedule == "linear" {
             // Linear spacing: spreads steps evenly across the 0..1000 range.
-            // Good for generic sampling, but can suffer from lack of detail refinement
-            // when generating with very few total steps.
             let step_ratio = 1000 / num_steps;
             for i in (0..num_steps).rev() {
                 steps.push(i * step_ratio);
@@ -62,8 +69,6 @@ impl GeneratorWasm {
                 other => other.parse::<f32>().unwrap_or(2.0),
             };
             // Polynomial/Power spacing: concentrates steps near t=0 using exponent rho.
-            // Concentrating more steps at lower timesteps is ideal for diffusion models because
-            // the final denoising steps are critical for resolving high-frequency details.
             if num_steps > 1 {
                 for i in (0..num_steps).rev() {
                     let x = i as f32 / (num_steps - 1) as f32;
@@ -75,6 +80,13 @@ impl GeneratorWasm {
             }
         }
         
+        let prediction_type_str = prediction_type.unwrap_or_else(|| "noise".to_string());
+        let prediction_type = if prediction_type_str == "velocity" {
+            "velocity".to_string()
+        } else {
+            "noise".to_string()
+        };
+        
         Ok(Self {
             model,
             device,
@@ -84,6 +96,7 @@ impl GeneratorWasm {
             steps,
             current_step_idx: 0,
             sampler,
+            prediction_type,
         })
     }
     
@@ -124,57 +137,70 @@ impl GeneratorWasm {
         };
         
         let timesteps = Tensor::<NdArray, 1>::from_floats([t as f32], &self.device);
-        let epsilon_1 = self.model.unet.forward(self.x_t.clone(), timesteps, self.class_ids.clone());
+        let out_1 = self.model.unet.forward(self.x_t.clone(), timesteps, self.class_ids.clone());
         
-        if self.sampler == "heun" && prev_t.is_some() {
-            let prev_t_val = prev_t.unwrap();
+        if self.prediction_type == "velocity" {
+            // --- EDUCATIONAL: FLOW MATCHING REVERSE ODE SOLVERS ---
+            // In Flow Matching, the network outputs velocity v_t = x_1 - x_0.
+            // Integrate backward from t=1.0 down to t=0.0.
+            let t_scaled = t as f32 / 1000.0;
+            let prev_t_val = prev_t.unwrap_or(0);
+            let prev_t_scaled = prev_t_val as f32 / 1000.0;
+            let dt = t_scaled - prev_t_scaled;
             
-            // --- EDUCATIONAL: HEUN'S 2ND-ORDER SAMPLER (PREDICTOR-CORRECTOR METHOD) ---
-            // While DDIM works as a 1st-order solver (Euler method) that takes steps along the 
-            // initial derivative (epsilon_1), Heun's method computes a 2nd-order correction step 
-            // to drastically decrease numerical approximation errors along the ODE trajectory.
-            // 
-            // Note: Since noise scaling factors (alphas/betas) change non-linearly at each step,
-            // we cannot simply average the predicted noise vectors directly. We must compute the
-            // predicted clean states (x0) at each timestep using their respective scaling factors,
-            // average the states and noise, and then project the final integration.
-            
-            let alpha_t = self.scheduler.alphas_cumprod[t];
-            let alpha_prev = self.scheduler.alphas_cumprod[prev_t_val];
-            let beta_t = 1.0 - alpha_t;
-            let beta_prev = 1.0 - alpha_prev;
-            
-            // 1. PREDICT CLEAN x0_1:
-            // Predict the clean image (x0_1) from current state x_t and current noise (epsilon_1)
-            let x0_1 = (self.x_t.clone() - epsilon_1.clone().mul_scalar(beta_t.sqrt()))
-                .div_scalar(alpha_t.sqrt());
-                
-            // 2. PREDICTOR STEP (Euler Step to next state):
-            // Project the state forward to an intermediate state (x_prev_pred) at the next timestep (prev_t)
-            let x_prev_pred = x0_1.clone().mul_scalar(alpha_prev.sqrt()) + epsilon_1.clone().mul_scalar(beta_prev.sqrt());
-            
-            // 3. CORRECTOR STEP:
-            // Evaluate the model's U-Net again at the estimated intermediate state (x_prev_pred)
-            // at the future timestep (prev_t) to get the predicted future noise (epsilon_2).
-            let prev_timesteps = Tensor::<NdArray, 1>::from_floats([prev_t_val as f32], &self.device);
-            let epsilon_2 = self.model.unet.forward(x_prev_pred.clone(), prev_timesteps, self.class_ids.clone());
-            
-            // 4. PREDICT CLEAN x0_2:
-            // Predict the clean image (x0_2) at the future timestep (prev_t) using epsilon_2
-            let x0_2 = (x_prev_pred - epsilon_2.clone().mul_scalar(beta_prev.sqrt()))
-                .div_scalar(alpha_prev.sqrt());
-                
-            // 5. AVERAGING:
-            // Average the predicted clean states (x0) and noise directions (epsilon)
-            let x0_avg = (x0_1 + x0_2).mul_scalar(0.5);
-            let epsilon_avg = (epsilon_1 + epsilon_2).mul_scalar(0.5);
-            
-            // 6. FINAL INTEGRATION:
-            // Integrate using the averaged clean state and noise scaled by the target timestep factors
-            self.x_t = x0_avg.mul_scalar(alpha_prev.sqrt()) + epsilon_avg.mul_scalar(beta_prev.sqrt());
+            if self.sampler == "heun" && prev_t.is_some() {
+                // Heun's 2nd-order predictor-corrector method:
+                let x_prev_pred = self.x_t.clone() - out_1.clone().mul_scalar(dt);
+                let prev_timesteps = Tensor::<NdArray, 1>::from_floats([prev_t_val as f32], &self.device);
+                let out_2 = self.model.unet.forward(x_prev_pred, prev_timesteps, self.class_ids.clone());
+                let v_avg = (out_1 + out_2).mul_scalar(0.5);
+                self.x_t = self.x_t.clone() - v_avg.mul_scalar(dt);
+            } else {
+                // Euler 1st-order method:
+                self.x_t = self.x_t.clone() - out_1.mul_scalar(dt);
+            }
         } else {
-            // Standard 1st-Order DDIM step (Euler method equivalent)
-            self.x_t = self.scheduler.step(self.x_t.clone(), epsilon_1, t, prev_t);
+            // --- DDPM / DDIM REVERSE PROCESS ---
+            let epsilon_1 = out_1;
+            
+            if self.sampler == "heun" && prev_t.is_some() {
+                let prev_t_val = prev_t.unwrap();
+                
+                // --- EDUCATIONAL: HEUN'S 2ND-ORDER SAMPLER (PREDICTOR-CORRECTOR METHOD) ---
+                // While DDIM works as a 1st-order solver (Euler method) that takes steps along the 
+                // initial derivative (epsilon_1), Heun's method computes a 2nd-order correction step 
+                // to drastically decrease numerical approximation errors along the ODE trajectory.
+                
+                let alpha_t = self.scheduler.alphas_cumprod[t];
+                let alpha_prev = self.scheduler.alphas_cumprod[prev_t_val];
+                let beta_t = 1.0 - alpha_t;
+                let beta_prev = 1.0 - alpha_prev;
+                
+                // 1. PREDICT CLEAN x0_1:
+                let x0_1 = (self.x_t.clone() - epsilon_1.clone().mul_scalar(beta_t.sqrt()))
+                    .div_scalar(alpha_t.sqrt());
+                    
+                // 2. PREDICTOR STEP (Euler Step to next state):
+                let x_prev_pred = x0_1.clone().mul_scalar(alpha_prev.sqrt()) + epsilon_1.clone().mul_scalar(beta_prev.sqrt());
+                
+                // 3. CORRECTOR STEP:
+                let prev_timesteps = Tensor::<NdArray, 1>::from_floats([prev_t_val as f32], &self.device);
+                let epsilon_2 = self.model.unet.forward(x_prev_pred.clone(), prev_timesteps, self.class_ids.clone());
+                
+                // 4. PREDICT CLEAN x0_2:
+                let x0_2 = (x_prev_pred - epsilon_2.clone().mul_scalar(beta_prev.sqrt()))
+                    .div_scalar(alpha_prev.sqrt());
+                    
+                // 5. AVERAGING:
+                let x0_avg = (x0_1 + x0_2).mul_scalar(0.5);
+                let epsilon_avg = (epsilon_1 + epsilon_2).mul_scalar(0.5);
+                
+                // 6. FINAL INTEGRATION:
+                self.x_t = x0_avg.mul_scalar(alpha_prev.sqrt()) + epsilon_avg.mul_scalar(beta_prev.sqrt());
+            } else {
+                // Standard 1st-Order DDIM step (Euler method equivalent)
+                self.x_t = self.scheduler.step(self.x_t.clone(), epsilon_1, t, prev_t);
+            }
         }
         
         self.current_step_idx += 1;
@@ -199,8 +225,8 @@ mod tests {
         let recorder = BinBytesRecorder::<FullPrecisionSettings>::default();
         let bytes = recorder.record(model.into_record(), ()).unwrap();
         
-        // Create GeneratorWasm from those bytes
-        let mut generator = GeneratorWasm::new(&bytes, 10, 3, 5, "linear".to_string(), "ddim".to_string()).unwrap();
+        // Create GeneratorWasm from those bytes (DDPM mode)
+        let mut generator = GeneratorWasm::new(&bytes, 10, 3, 5, "linear".to_string(), "ddim".to_string(), Some("noise".to_string())).unwrap();
         assert_eq!(generator.total_steps(), 5);
         assert_eq!(generator.current_step(), 0);
         assert!(!generator.is_complete());
@@ -213,5 +239,14 @@ mod tests {
         let step_pixels = generator.step().unwrap().unwrap();
         assert_eq!(step_pixels.len(), 784);
         assert_eq!(generator.current_step(), 1);
+
+        // Create GeneratorWasm from those bytes (Flow Matching mode)
+        let mut generator_fm = GeneratorWasm::new(&bytes, 10, 3, 5, "linear".to_string(), "ddim".to_string(), Some("velocity".to_string())).unwrap();
+        assert_eq!(generator_fm.total_steps(), 5);
+        assert_eq!(generator_fm.current_step(), 0);
+        
+        let step_pixels_fm = generator_fm.step().unwrap().unwrap();
+        assert_eq!(step_pixels_fm.len(), 784);
+        assert_eq!(generator_fm.current_step(), 1);
     }
 }

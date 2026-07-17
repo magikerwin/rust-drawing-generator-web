@@ -33,6 +33,7 @@ struct AppConfig {
     classes: Vec<String>,
     version: String,
     compiled_version: String,
+    prediction_type: String,
 }
 
 /// Shared state across the web server requests
@@ -60,6 +61,20 @@ struct SseStepPayload {
     pixels: Vec<f32>,
 }
 
+/// Helper function to load the model's prediction target configuration from config.json.
+/// If config.json does not exist or lacks the parameter, defaults to DDPM/DDIM ("noise").
+fn get_prediction_type_from_config(artifact_dir: &str) -> String {
+    let config_path = format!("{artifact_dir}/config.json");
+    if let Ok(content) = std::fs::read_to_string(config_path) {
+        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+            if let Some(pred_type) = json.get("prediction_type").and_then(|v| v.as_str()) {
+                return pred_type.to_string();
+            }
+        }
+    }
+    "noise".to_string()
+}
+
 /// Handler that serves the HTML drawing canvas frontend page
 async fn index_handler() -> Html<&'static str> {
     Html(include_str!("../docs/index.html"))
@@ -81,10 +96,18 @@ async fn generate_handler(
     let schedule = query.schedule.as_deref().unwrap_or("linear");
     let sampler = query.sampler.as_deref().unwrap_or("ddim");
     
-    // Perform progressive generation on the CPU
+    // Perform progressive generation on the CPU using the model's prediction type
     let history = {
         let model = state.model.lock().unwrap();
-        generate_image_steps(&model, &state.device, query.class_id, steps, schedule, sampler)
+        generate_image_steps(
+            &model,
+            &state.device,
+            query.class_id,
+            steps,
+            schedule,
+            sampler,
+            &state.config.prediction_type,
+        )
     };
 
     let total = history.len();
@@ -133,6 +156,12 @@ async fn main() {
         .and_then(|pos| args.get(pos + 1))
         .map(|s| s.as_str())
         .unwrap_or("mnist");
+
+    let prediction_type_arg = args.iter()
+        .position(|arg| arg == "--prediction-type")
+        .and_then(|pos| args.get(pos + 1))
+        .map(|s| s.as_str())
+        .unwrap_or("noise");
 
     let epochs_arg = args.iter()
         .position(|arg| arg == "--epochs")
@@ -186,11 +215,15 @@ async fn main() {
             .trim()
             .to_string();
 
+        let prediction_type = get_prediction_type_from_config(artifact_dir);
+        println!("Model target prediction type loaded: {}", prediction_type);
+
         let config = AppConfig {
             dataset: dataset_arg.to_string(),
             classes,
             version: version.clone(),
             compiled_version,
+            prediction_type,
         };
         let state = AppState { model, device, config };
 
@@ -235,9 +268,10 @@ async fn main() {
             class_id.to_string()
         };
 
-        println!("Generating drawing for class: '{}' (class ID: {}) using 20 DDIM steps...", class_name, class_id);
+        println!("Generating drawing for class: '{}' (class ID: {}) using 20 steps...", class_name, class_id);
         
-        let history = generate_image_steps(&model, &device, class_id, 20, "linear", "ddim");
+        let prediction_type = get_prediction_type_from_config(artifact_dir);
+        let history = generate_image_steps(&model, &device, class_id, 20, "linear", "ddim", &prediction_type);
         
         // Render final drawing as ASCII art
         println!("\nGenerated Output:");
@@ -249,6 +283,7 @@ async fn main() {
         // BRANCH C: RUN TRAINING LOOP
         // ==========================================
         let mut config = TrainingConfig::new(AdamConfig::new());
+        config.prediction_type = prediction_type_arg.to_string();
         if let Some(epochs) = epochs_arg {
             config.num_epochs = epochs;
         }

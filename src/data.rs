@@ -12,10 +12,11 @@ pub struct MnistBatcher<B: Backend> {
     is_training: bool,
     allow_flip: bool,
     scheduler: std::sync::Arc<DDIMScheduler>,
+    prediction_type: String, // "noise" (DDPM) or "velocity" (Flow Matching)
 }
 
 impl<B: Backend> MnistBatcher<B> {
-    pub fn new(device: B::Device, is_training: bool, allow_flip: bool) -> Self {
+    pub fn new(device: B::Device, is_training: bool, allow_flip: bool, prediction_type: String) -> Self {
         // Standard 1000-step linear schedule for training
         let scheduler = std::sync::Arc::new(DDIMScheduler::new(1000, 1e-4, 0.02));
         Self {
@@ -23,6 +24,7 @@ impl<B: Backend> MnistBatcher<B> {
             is_training,
             allow_flip,
             scheduler,
+            prediction_type,
         }
     }
 }
@@ -32,7 +34,7 @@ pub struct MnistBatch<B: Backend> {
     pub corrupted_images: Tensor<B, 4>,
     pub targets: Tensor<B, 1, Int>,
     pub timesteps: Tensor<B, 1>,
-    pub noise: Tensor<B, 4>,
+    pub target: Tensor<B, 4>, // Holds the learning target: noise (DDPM) or velocity (Flow Matching)
 }
 
 impl<B: Backend> Batcher<MnistItem, MnistBatch<B>> for MnistBatcher<B> {
@@ -107,14 +109,30 @@ impl<B: Backend> Batcher<MnistItem, MnistBatch<B>> for MnistBatcher<B> {
             &self.device,
         );
 
-        // 5. Corrupt clean images to get x_t
-        let corrupted_images = self.scheduler.add_noise(clean_images, noise.clone(), timesteps_int);
+        // 5. Corrupt clean images and select the model's prediction target
+        let (corrupted_images, target) = if self.prediction_type == "velocity" {
+            // --- EDUCATIONAL: FLOW MATCHING TRAJECTORY ---
+            // In Flow Matching, the noisy image x_t is a direct linear interpolation
+            // between the clean image (x0) and the random noise (x1):
+            //     x_t = (1 - t) * x_0 + t * noise
+            // The model is trained to predict the straight line velocity field (v_t = noise - x0).
+            let corrupted = self.scheduler.add_noise_flow(clean_images.clone(), noise.clone(), timesteps.clone());
+            let target_velocity = noise - clean_images;
+            (corrupted, target_velocity)
+        } else {
+            // --- EDUCATIONAL: DDPM TRAJECTORY ---
+            // In standard DDPM, the noisy image x_t is corrupted along a curved schedule:
+            //     x_t = sqrt(alpha_bar_t) * x_0 + sqrt(1 - alpha_bar_t) * noise
+            // The model is trained to predict the added noise directly.
+            let corrupted = self.scheduler.add_noise(clean_images, noise.clone(), timesteps_int);
+            (corrupted, noise)
+        };
 
         MnistBatch {
             corrupted_images,
             targets,
             timesteps,
-            noise,
+            target,
         }
     }
 }
@@ -129,20 +147,22 @@ fn augment_image(
 ) -> [[f32; 28]; 28] {
     let mut augmented = [[0.0; 28]; 28];
     for y in 0..28 {
-        for x in 0..28 {
-            // Subtracting 13.5 shifts coordinates so scaling is centered around the middle of the 28x28 grid
-            let src_x = ((x as f32 - 13.5) / scale + 13.5) - dx as f32;
-            let src_y = ((y as f32 - 13.5) / scale + 13.5) - dy as f32;
+        let src_y = ((y as f32 - 13.5) / scale + 13.5) - dy as f32;
+        let src_y_i = src_y.round() as i32;
 
-            let src_x_i = src_x.round() as i32;
-            let src_y_i = src_y.round() as i32;
+        if src_y_i >= 0 && src_y_i < 28 {
+            let sy_idx = src_y_i as usize;
+            for x in 0..28 {
+                let src_x = ((x as f32 - 13.5) / scale + 13.5) - dx as f32;
+                let src_x_i = src_x.round() as i32;
 
-            if src_x_i >= 0 && src_x_i < 28 && src_y_i >= 0 && src_y_i < 28 {
-                let mut sx = src_x_i as usize;
-                if flip_h {
-                    sx = 27 - sx;
+                if src_x_i >= 0 && src_x_i < 28 {
+                    let mut sx = src_x_i as usize;
+                    if flip_h {
+                        sx = 27 - sx;
+                    }
+                    augmented[y][x] = image[sy_idx][sx];
                 }
-                augmented[y][x] = image[src_y_i as usize][sx];
             }
         }
     }
@@ -158,7 +178,7 @@ mod tests {
     fn test_batcher() {
         type TestBackend = NdArray;
         let device = Default::default();
-        let batcher = MnistBatcher::<TestBackend>::new(device, false, false);
+        let batcher = MnistBatcher::<TestBackend>::new(device, false, false, "noise".to_string());
 
         let item1 = MnistItem {
             image: [[0.0; 28]; 28],
@@ -177,8 +197,8 @@ mod tests {
         let target_shape = batch.targets.shape();
         assert_eq!(target_shape.dims, [2]);
 
-        let noise_shape = batch.noise.shape();
-        assert_eq!(noise_shape.dims, [2, 1, 28, 28]);
+        let target_tensor_shape = batch.target.shape();
+        assert_eq!(target_tensor_shape.dims, [2, 1, 28, 28]);
 
         let timesteps_shape = batch.timesteps.shape();
         assert_eq!(timesteps_shape.dims, [2]);

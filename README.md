@@ -28,7 +28,8 @@
 ## ✨ Features
 
 - **Conditional U-Net Architecture** — Sinusoidal time embedding module, class conditioning embedding module, skip connections, and residual blocks.
-- **DDIM & Heun Scheduler Denoising** — Accelerated reverse sampling supporting both **DDIM (1st-Order)** and **Heun (2nd-Order)** samplers, with customizable **Polynomial Spacing Schedules** (exponents 1.0–7.0) to achieve superior drawing quality in as few as 5–10 steps.
+- **DDPM & Flow Matching (Rectified Flow) Support** — Dual support for both standard noise-prediction (DDPM/DDIM) and straight-line velocity-prediction (Flow Matching) generative paradigms.
+- **DDIM/Euler & Heun Scheduler Denoising** — Accelerated reverse sampling supporting both **DDIM/Euler (1st-Order)** and **Heun (2nd-Order)** samplers, with customizable **Polynomial Spacing Schedules** (exponents 1.0–7.0) to achieve superior drawing quality in as few as 5–10 steps.
 - **Progressive Denoising Animation** — Visual progressive rendering showing the drawing emerge frame-by-frame from pure Gaussian noise.
 - **Dual Inference Modes** — Server-side Axum streaming via Server-Sent Events (SSE) and client-side WebAssembly local browser execution.
 - **Fully in Rust** — Training, scheduler, inference engine, and web frontend in a unified workspace.
@@ -119,6 +120,13 @@ To specify the training learning rate (defaults to 2e-4):
 cargo run --release -- --lr 0.0003
 ```
 
+To train using **Flow Matching (Rectified Flow)** instead of standard DDPM:
+
+```sh
+cargo run --release -- --prediction-type velocity
+```
+
+*(Note: These flags can be combined, for example: `cargo run --release -- --epochs 40 --lr 0.0003 --prediction-type velocity --gpu`)*
 To train on the **EMNIST Letters** dataset (26 classes):
 
 ```sh

@@ -96,6 +96,7 @@
                 opacity: 0;
                 transform: translateY(-10px);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0);
@@ -181,8 +182,17 @@
         }
 
         @keyframes pulse-glow {
-            0%, 100% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.005); opacity: 0.95; }
+
+            0%,
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            50% {
+                transform: scale(1.005);
+                opacity: 0.95;
+            }
         }
 
         #drawingCanvas {
@@ -212,21 +222,29 @@
             width: 8px;
             height: 8px;
             border-radius: 50%;
-            background-color: #10b981; /* Green */
+            background-color: #10b981;
+            /* Green */
         }
 
         .predict-dot.idle {
-            background-color: #9ca3af; /* Gray */
+            background-color: #9ca3af;
+            /* Gray */
         }
 
         .predict-dot.loading {
-            background-color: #3b82f6; /* Blue */
+            background-color: #3b82f6;
+            /* Blue */
             animation: blink 1s infinite alternate;
         }
 
         @keyframes blink {
-            from { opacity: 0.3; }
-            to { opacity: 1; }
+            from {
+                opacity: 0.3;
+            }
+
+            to {
+                opacity: 1;
+            }
         }
 
         /* Settings and configurations styling */
@@ -356,7 +374,8 @@
             margin-bottom: 0px;
             cursor: pointer;
             user-select: none;
-            list-style: none; /* Hide default arrow */
+            list-style: none;
+            /* Hide default arrow */
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -368,7 +387,8 @@
         }
 
         summary.categories-title::-webkit-details-marker {
-            display: none; /* Hide default arrow in Chrome/Safari */
+            display: none;
+            /* Hide default arrow in Chrome/Safari */
         }
 
         summary.categories-title::after {
@@ -395,9 +415,11 @@
         .categories-grid::-webkit-scrollbar {
             width: 4px;
         }
+
         .categories-grid::-webkit-scrollbar-track {
             background: rgba(255, 255, 255, 0.01);
         }
+
         .categories-grid::-webkit-scrollbar-thumb {
             background: var(--border-color);
             border-radius: 2px;
@@ -477,6 +499,7 @@
         #systemLogsBox::-webkit-scrollbar {
             width: 4px;
         }
+
         #systemLogsBox::-webkit-scrollbar-thumb {
             background: var(--border-color);
             border-radius: 2px;
@@ -495,25 +518,31 @@
                 padding: 10px;
                 min-height: auto;
             }
+
             .container {
                 gap: 15px;
             }
+
             header h1 {
                 font-size: 1.8rem;
             }
+
             .app-grid {
                 grid-template-columns: 1fr;
                 gap: 16px;
             }
+
             .card {
                 padding: 16px;
                 gap: 16px;
             }
+
             .canvas-wrapper {
                 aspect-ratio: 1 / 1;
                 max-width: 320px;
                 margin: 0 auto;
             }
+
             footer {
                 margin-top: 16px;
             }
@@ -570,10 +599,12 @@
                         <span id="statusText">Ready</span>
                     </div>
                 </div>
-                
+
                 <div style="display: flex; gap: 12px; width: 100%;">
-                    <button class="btn" id="generateBtn" style="flex-grow: 2; background-color: var(--accent-glow); border-color: var(--accent-glow); box-shadow: 0 4px 15px rgba(99, 102, 241, 0.35);">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <button class="btn" id="generateBtn"
+                        style="flex-grow: 2; background-color: var(--accent-glow); border-color: var(--accent-glow); box-shadow: 0 4px 15px rgba(99, 102, 241, 0.35);">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                             <polygon points="5 3 19 12 5 21 5 3"></polygon>
                         </svg>
                         Generate Drawing
@@ -600,9 +631,11 @@
                             <span class="slider-value" id="stepsValue">16</span>
                         </label>
                         <div class="slider-container">
-                            <input type="range" id="stepsSlider" min="0" max="5" value="4" step="1" style="width: 100%;">
+                            <input type="range" id="stepsSlider" min="0" max="5" value="4" step="1"
+                                style="width: 100%;">
                         </div>
-                        <div style="display: flex; justify-content: space-between; font-size: 0.65rem; color: var(--text-sub); margin-top: -4px; padding: 0 2px;">
+                        <div
+                            style="display: flex; justify-content: space-between; font-size: 0.65rem; color: var(--text-sub); margin-top: -4px; padding: 0 2px;">
                             <span>1</span>
                             <span>2</span>
                             <span>4</span>
@@ -616,21 +649,29 @@
                         <label class="setting-label">
                             <span>Sampler Algorithm</span>
                         </label>
-                        <div class="tabs" style="align-self: flex-start; background: rgba(0,0,0,0.2); padding: 4px; border-radius: 20px; border: 1px solid var(--border-color); width: fit-content;">
-                            <button type="button" class="tab-btn active" id="samplerDdim" style="font-size: 0.75rem; padding: 4px 12px; border-radius: 15px;">DDIM (1st-Order)</button>
-                            <button type="button" class="tab-btn" id="samplerHeun" style="font-size: 0.75rem; padding: 4px 12px; border-radius: 15px;">Heun (2nd-Order)</button>
+                        <div class="tabs"
+                            style="align-self: flex-start; background: rgba(0,0,0,0.2); padding: 4px; border-radius: 20px; border: 1px solid var(--border-color); width: fit-content;">
+                            <button type="button" class="tab-btn active" id="samplerDdim"
+                                style="font-size: 0.75rem; padding: 4px 12px; border-radius: 15px;">DDIM
+                                (1st-Order)</button>
+                            <button type="button" class="tab-btn" id="samplerHeun"
+                                style="font-size: 0.75rem; padding: 4px 12px; border-radius: 15px;">Heun
+                                (2nd-Order)</button>
                         </div>
                     </div>
 
                     <div class="setting-row">
                         <label class="setting-label">
                             <span>Denoising Schedule (Power)</span>
-                            <span class="slider-value" id="scheduleValue" style="color: var(--accent-glow);">Linear (1.0)</span>
+                            <span class="slider-value" id="scheduleValue" style="color: var(--accent-glow);">Linear
+                                (1.0)</span>
                         </label>
                         <div class="slider-container">
-                            <input type="range" id="scheduleSlider" min="1.0" max="7.0" value="1.0" step="0.5" style="width: 100%;">
+                            <input type="range" id="scheduleSlider" min="1.0" max="7.0" value="1.0" step="0.5"
+                                style="width: 100%;">
                         </div>
-                        <div style="display: flex; justify-content: space-between; font-size: 0.65rem; color: var(--text-sub); margin-top: -4px; padding: 0 2px;">
+                        <div
+                            style="display: flex; justify-content: space-between; font-size: 0.65rem; color: var(--text-sub); margin-top: -4px; padding: 0 2px;">
                             <span>Linear (1.0)</span>
                             <span>Quadratic (2.0)</span>
                             <span>Cubic (3.0)</span>
@@ -662,9 +703,11 @@
 
         <!-- Collapsible Developer Console -->
         <div class="card debug-panel" id="debugPanel" style="margin-top: 16px; display: none;">
-            <div style="font-weight: 600; font-size: 1rem; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+            <div
+                style="font-weight: 600; font-size: 1rem; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
                 <span>Developer Console</span>
-                <span style="font-size: 0.75rem; color: var(--text-sub);" id="debugStatusLabel">Model Version: loading...</span>
+                <span style="font-size: 0.75rem; color: var(--text-sub);" id="debugStatusLabel">Model Version:
+                    loading...</span>
             </div>
 
             <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
@@ -697,16 +740,16 @@
         const canvas = document.getElementById('drawingCanvas');
         const ctx = canvas.getContext('2d');
         const wrapper = document.getElementById('canvasWrapper');
-        
+
         const generateBtn = document.getElementById('generateBtn');
         const clearBtn = document.getElementById('clearBtn');
         const statusDot = document.getElementById('statusDot');
         const statusText = document.getElementById('statusText');
-        
+
         const modeServer = document.getElementById('modeServer');
         const modeWasm = document.getElementById('modeWasm');
         const datasetSelector = document.getElementById('datasetSelector');
-        
+
         const tabMnist = document.getElementById('tabMnist');
         const tabEmnist = document.getElementById('tabEmnist');
         const tabQuickdraw = document.getElementById('tabQuickdraw');
@@ -717,7 +760,7 @@
         const scheduleValue = document.getElementById('scheduleValue');
         const samplerDdim = document.getElementById('samplerDdim');
         const samplerHeun = document.getElementById('samplerHeun');
-        
+
         const progressContainer = document.getElementById('progressContainer');
         const progressText = document.getElementById('progressText');
         const progressBarFill = document.getElementById('progressBarFill');
@@ -734,10 +777,18 @@
             "clock", "envelope", "toothbrush", "house", "car", "smiley face", "pants", "t-shirt", "apple"
         ];
 
+        // Prediction target types mapping for static WASM datasets (noise = DDPM, velocity = Flow Matching)
+        const datasetPredictionTypes = {
+            mnist: 'velocity',
+            emnist: 'noise',
+            quickdraw: 'noise'
+        };
+
         // System state
         let appConfig = {
             dataset: 'mnist',
-            classes: mnistClasses
+            classes: mnistClasses,
+            prediction_type: 'noise'
         };
 
         let runMode = 'server'; // 'server' or 'wasm'
@@ -746,7 +797,7 @@
         let isGenerating = false;
         let selectedSchedule = 'linear';
         let selectedSampler = 'ddim';
-        
+
         let wasmModule = null;
         let weightsCache = {};
         let activeEventSource = null;
@@ -816,7 +867,7 @@
         // Initialize Canvas color
         ctx.fillStyle = '#000000';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
+
         previewCtx.fillStyle = '#000000';
         previewCtx.fillRect(0, 0, 28, 28);
 
@@ -840,7 +891,7 @@
             const expectedStr = expectedVersion ? expectedVersion : 'unknown';
             const serverVersion = (appConfig && appConfig.version) ? appConfig.version : 'unknown';
             const compiledVersion = (appConfig && appConfig.compiled_version) ? appConfig.compiled_version : 'unknown';
-            
+
             if (runMode === 'server') {
                 if (expectedVersion && compiledVersion && expectedVersion !== compiledVersion) {
                     debugStatusLabel.innerHTML = `Model Version: <span style="color: #eab308; font-weight: bold;">${serverVersion} (Server)</span> <span style="color: #f87171; font-weight: bold;">⚠️ Mismatch (Expected ${expectedStr})</span>`;
@@ -852,7 +903,7 @@
                     debugStatusLabel.textContent = `Model Version: loading... (Expected: ${expectedStr})`;
                     return;
                 }
-                
+
                 try {
                     const loadedWasmVersion = wasmModule.get_compiled_model_version();
                     if (expectedVersion && loadedWasmVersion && expectedVersion !== loadedWasmVersion) {
@@ -934,14 +985,15 @@
             } else {
                 datasetSelector.style.display = 'flex';
                 logToSystem('Switched to client-side WebAssembly generation mode.');
-                
+
                 // Select active tab
                 const activeTab = document.querySelector('#datasetSelector .tab-btn.active');
                 const dataset = activeTab ? activeTab.getAttribute('data-dataset') : 'mnist';
-                
+
                 appConfig = {
                     dataset: dataset,
-                    classes: dataset === 'quickdraw' ? quickdrawClasses : (dataset === 'emnist' ? emnistClasses : mnistClasses)
+                    classes: dataset === 'quickdraw' ? quickdrawClasses : (dataset === 'emnist' ? emnistClasses : mnistClasses),
+                    prediction_type: datasetPredictionTypes[dataset] || 'noise'
                 };
                 selectedClassIndex = 0;
                 initUI();
@@ -964,9 +1016,10 @@
 
                 appConfig = {
                     dataset: dataset,
-                    classes: dataset === 'quickdraw' ? quickdrawClasses : (dataset === 'emnist' ? emnistClasses : mnistClasses)
+                    classes: dataset === 'quickdraw' ? quickdrawClasses : (dataset === 'emnist' ? emnistClasses : mnistClasses),
+                    prediction_type: datasetPredictionTypes[dataset] || 'noise'
                 };
-                
+
                 selectedClassIndex = 0;
                 logToSystem(`Switched WASM dataset to: ${dataset}`);
                 initUI();
@@ -983,8 +1036,8 @@
 
             document.title = isQD ? `Quick Draw Doodle Generator${modeText}` : (isEM ? `EMNIST Letters Generator${modeText}` : `MNIST Digit Generator${modeText}`);
             document.getElementById('appTitle').innerText = isQD ? `Quick Draw Doodle Generator${modeText}` : (isEM ? `EMNIST Letters Generator${modeText}` : `MNIST Digit Generator${modeText}`);
-            document.getElementById('appDesc').innerText = isQD 
-                ? 'Select a doodle category below to generate its drawing using a diffusion model' 
+            document.getElementById('appDesc').innerText = isQD
+                ? 'Select a doodle category below to generate its drawing using a diffusion model'
                 : (isEM ? 'Select a character (A-Z) below to generate its drawing using a diffusion model' : 'Select a digit (0-9) below to generate its drawing using a diffusion model');
 
             // Populate Category selection badges grid
@@ -1037,7 +1090,7 @@
 
                 const dataset = appConfig.dataset;
                 let weightsBytes = weightsCache[dataset];
-                
+
                 if (!weightsBytes) {
                     logToSystem(`Downloading weights file for ${dataset}...`);
                     const localUrl = `./${dataset}-model.bin?v=${expectedVersion || Date.now()}`;
@@ -1056,7 +1109,7 @@
                 console.error('Failed to load WASM predictor weights:', err);
                 wasmLoadError = err.message || err.toString();
                 logToSystem(`WASM initialization failed: ${wasmLoadError}`, true);
-                
+
                 debugPanel.style.display = 'block';
                 toggleDebugLink.innerText = 'Close Developer Console';
                 statusText.innerText = 'WASM Load Failed';
@@ -1067,7 +1120,7 @@
         // Draw 784-pixel array onto canvases
         function renderPixels(pixels) {
             if (!pixels || pixels.length !== 784) return;
-            
+
             // Write grayscale values to the offscreen preview canvas
             const imgData = previewCtx.createImageData(28, 28);
             const data = imgData.data;
@@ -1087,7 +1140,7 @@
 
             ctx.imageSmoothingEnabled = false;
             ctx.msImageSmoothingEnabled = false;
-            
+
             const size = Math.min(canvas.width, canvas.height);
             const x = (canvas.width - size) / 2;
             const y = (canvas.height - size) / 2;
@@ -1120,7 +1173,7 @@
             samplerHeun.style.opacity = '0.5';
             samplerDdim.style.cursor = 'not-allowed';
             samplerHeun.style.cursor = 'not-allowed';
-            
+
             progressContainer.style.display = 'block';
             progressBarFill.style.width = '0%';
             progressText.innerText = `0% (Step 0/${steps})`;
@@ -1132,7 +1185,8 @@
             previewCtx.fillRect(0, 0, 28, 28);
 
             const startTime = performance.now();
-            logToSystem(`Triggering generation of "${appConfig.classes[classId]}" using ${steps} steps [Mode: ${runMode.toUpperCase()}]`);
+            const modelTypeLabel = (appConfig.prediction_type === 'velocity') ? 'Flow Matching (Velocity)' : 'DDPM/DDIM (Noise)';
+            logToSystem(`Triggering generation of "${appConfig.classes[classId]}" using ${steps} steps [Mode: ${runMode.toUpperCase()} | Target: ${modelTypeLabel}]`);
 
             if (runMode === 'server') {
                 statusDot.className = 'predict-dot loading';
@@ -1155,7 +1209,7 @@
                     // SSE connection closes when finished or error occurs
                     activeEventSource.close();
                     activeEventSource = null;
-                    
+
                     const duration = (performance.now() - startTime).toFixed(0);
                     logToSystem(`Generation complete! Server duration: ${duration}ms`);
                     finishGeneration(`Latency: ${duration}ms`);
@@ -1178,15 +1232,24 @@
                     }
 
                     const numClasses = appConfig.classes.length;
-                    logToSystem('Initializing WASM Diffusion Generator...');
-                    const generator = new wasmModule.GeneratorWasm(weightsCache[dataset], numClasses, classId, steps, selectedSchedule, selectedSampler);
+                    const predType = appConfig.prediction_type || 'noise';
+                    logToSystem(`Initializing WASM Generator in ${predType === 'velocity' ? 'Flow Matching' : 'DDPM/DDIM'} mode...`);
+                    const generator = new wasmModule.GeneratorWasm(
+                        weightsCache[dataset],
+                        numClasses,
+                        classId,
+                        steps,
+                        selectedSchedule,
+                        selectedSampler,
+                        predType
+                    );
 
                     // Show initial noise
                     const initNoise = generator.get_current_pixels();
                     renderPixels(initNoise);
 
                     let stepIdx = 0;
-                    
+
                     function runStep() {
                         if (!isGenerating) return;
 
@@ -1242,16 +1305,16 @@
 
         function clearCanvas() {
             if (isGenerating) return;
-            
+
             ctx.fillStyle = '#000000';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
+
             previewCtx.fillStyle = '#000000';
             previewCtx.fillRect(0, 0, 28, 28);
 
             progressContainer.style.display = 'none';
             progressBarFill.style.width = '0%';
-            
+
             statusDot.className = 'predict-dot idle';
             statusText.innerText = 'Ready';
         }

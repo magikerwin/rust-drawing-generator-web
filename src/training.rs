@@ -32,6 +32,8 @@ pub struct TrainingConfig {
     pub optimizer: AdamConfig,  // Optimizer configuration (e.g. learning rate, betas)
     #[config(default = 2e-4)]
     pub learning_rate: f64,     // Static learning rate for training
+    #[config(default = "String::from(\"noise\")")]
+    pub prediction_type: String, // Target type ("noise" or "velocity")
 }
 
 /// Orchestrates the training pipeline. Decoupled from specific datasets using generic types.
@@ -71,11 +73,11 @@ pub fn train<B: AutodiffBackend, D1, D2>(
     // Set the backend random seed for reproducible initialization and shuffling
     B::seed(config.seed);
 
-    // Initialize the batcher for training data
-    let batcher_train = MnistBatcher::<B>::new(device.clone(), true, allow_horizontal_flip);
+    // Initialize the batcher for training data, passing target type
+    let batcher_train = MnistBatcher::<B>::new(device.clone(), true, allow_horizontal_flip, config.prediction_type.clone());
     
-    // Initialize the batcher for validation data
-    let batcher_valid = MnistBatcher::<B::InnerBackend>::new(device.clone(), false, false);
+    // Initialize the batcher for validation data, passing target type
+    let batcher_valid = MnistBatcher::<B::InnerBackend>::new(device.clone(), false, false, config.prediction_type.clone());
 
     // Build the training DataLoader
     let dataloader_train = DataLoaderBuilder::new(batcher_train)
@@ -128,7 +130,7 @@ impl<B: AutodiffBackend> TrainStep<MnistBatch<B>, RegressionOutput<B>> for Model
         );
         let loss = MseLoss::new().forward(
             output.clone(),
-            batch.noise.clone(),
+            batch.target.clone(),
             Reduction::Auto,
         );
 
@@ -138,7 +140,7 @@ impl<B: AutodiffBackend> TrainStep<MnistBatch<B>, RegressionOutput<B>> for Model
             RegressionOutput::new(
                 loss,
                 output.flatten(1, 3),
-                batch.noise.flatten(1, 3),
+                batch.target.flatten(1, 3),
             ),
         )
     }
@@ -154,14 +156,14 @@ impl<B: Backend> ValidStep<MnistBatch<B>, RegressionOutput<B>> for Model<B> {
         );
         let loss = MseLoss::new().forward(
             output.clone(),
-            batch.noise.clone(),
+            batch.target.clone(),
             Reduction::Auto,
         );
 
         RegressionOutput::new(
             loss,
             output.flatten(1, 3),
-            batch.noise.flatten(1, 3),
+            batch.target.flatten(1, 3),
         )
     }
 }
@@ -175,6 +177,7 @@ mod tests {
     #[test]
     fn test_train() {
         let artifact_dir = "./target/test-mnist-model";
+        std::fs::remove_dir_all(artifact_dir).ok(); // Clean up any leftovers from previous aborted runs
         type TestBackend = Autodiff<NdArray>;
         let device = Default::default();
 

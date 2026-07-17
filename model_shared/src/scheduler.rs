@@ -73,6 +73,36 @@ impl DDIMScheduler {
         x0 * scale_x + noise * scale_n
     }
 
+    /// --- EDUCATIONAL: FLOW MATCHING (RECTIFIED FLOW) FORWARD PROCESS ---
+    /// In standard diffusion (DDPM/DDIM), the forward process corrupts images along a curved
+    /// variance-preserving trajectory defined by non-linear scheduler alphas/betas.
+    ///
+    /// In Flow Matching (Rectified Flow), the forward process is a simple, straight-line 
+    /// linear interpolation between the clean data (x0) and standard normal noise (x1):
+    ///     x_t = (1 - t) * x_0 + t * x_1
+    /// where t is scaled to [0.0, 1.0].
+    ///
+    /// This linear path (also called "rectified flow") ensures the ODE trajectories are
+    /// much straighter, which makes solving the reverse ODE significantly faster (4-8 steps).
+    pub fn add_noise_flow<B: Backend>(
+        &self,
+        x0: Tensor<B, 4>,
+        noise: Tensor<B, 4>,
+        timesteps: Tensor<B, 1>,
+    ) -> Tensor<B, 4> {
+        let batch_size = x0.shape().dims[0];
+        
+        // Map integer timesteps [0..1000] to float range [0.0..1.0]
+        let t_float = timesteps.div_scalar(1000.0);
+        
+        // Reshape scaled time factors to [B, 1, 1, 1] for elementwise multiplication
+        let scale_n = t_float.reshape([batch_size, 1, 1, 1]);
+        let scale_x = scale_n.clone().neg().add_scalar(1.0); // (1.0 - t)
+        
+        // Linear blend: x_t = (1 - t) * x_0 + t * noise
+        x0 * scale_x + noise * scale_n
+    }
+
     /// Predict the sample at the previous timestep using the DDIM formula.
     /// x_t: current sample [B, C, H, W]
     /// model_output: predicted noise [B, C, H, W]

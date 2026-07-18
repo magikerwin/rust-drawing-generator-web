@@ -6,7 +6,8 @@ use burn::{
 };
 use model_shared::{Model, DDIMScheduler};
 
-const MODEL_VERSION: &str = include_str!("../weights-version.txt");
+// Embed model version tag compiled into WASM metadata
+const MODEL_VERSION: &str = include_str!("../../docs/weights-version.txt");
 
 #[wasm_bindgen]
 pub fn get_compiled_model_version() -> String {
@@ -45,7 +46,22 @@ impl GeneratorWasm {
         let record = recorder.load(model_bytes.to_vec(), &device)
             .map_err(|e| JsValue::from_str(&format!("Failed to load model weights: {:?}", e)))?;
             
-        let model = Model::<NdArray>::new(&device, num_classes).load_record(record);
+        let model = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            Model::<NdArray>::new(&device, num_classes).load_record(record)
+        }))
+        .map_err(|err| {
+            let msg = if let Some(s) = err.downcast_ref::<&str>() {
+                s.to_string()
+            } else if let Some(s) = err.downcast_ref::<String>() {
+                s.to_string()
+            } else {
+                "Shape/structural mismatch between the compiled WASM model and the downloaded weights file.".to_string()
+            };
+            JsValue::from_str(&format!(
+                "Model load failed: {}. ACTION required: Please retrain the dataset using the latest model architecture, convert and publish the weights locally using 'cargo run --release --bin publish_weights -- <version>', and commit & push the updated version files to GitHub to deploy matching assets.",
+                msg
+            ))
+        })?;
         let scheduler = DDIMScheduler::new(1000, 1e-4, 0.02);
         
         let x_t = Tensor::<NdArray, 4>::random(

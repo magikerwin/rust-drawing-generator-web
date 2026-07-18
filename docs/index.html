@@ -708,7 +708,7 @@
                 <div class="settings-section">
                     <div class="setting-row">
                         <label class="setting-label" for="stepsSlider">
-                            <span>Denoising Steps<span class="info-trigger" data-tooltip="Controls the number of iterative sampling steps. More steps yield higher quality but take longer to compute.">ⓘ</span></span>
+                            <span>Denoising Steps<span class="info-trigger" data-tooltip="Controls the number of iterative sampling steps. More steps yield higher quality but take longer to compute."><svg class="info-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width: 8px; height: 8px; display: block;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></span></span>
                             <span class="slider-value" id="stepsValue">16</span>
                         </label>
                         <div class="slider-container">
@@ -730,7 +730,7 @@
  
                     <div class="setting-row" id="cfgRow">
                         <label class="setting-label" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                            <span>Classifier-Free Guidance (CFG)<span class="info-trigger" data-tooltip="Amplifies class-specific details by extrapolating away from an unconditional baseline. Scale 1.0 disables CFG; 3.0 is recommended for sharp, clear strokes.">ⓘ</span></span>
+                            <span>Classifier-Free Guidance (CFG)<span class="info-trigger" data-tooltip="Amplifies class-specific details by extrapolating away from an unconditional baseline. Scale 1.0 disables CFG; 3.0 is recommended for sharp, clear strokes."><svg class="info-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width: 8px; height: 8px; display: block;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></span></span>
                             <div style="display: flex; align-items: center; gap: 8px;">
                                 <span class="slider-value" id="cfgValue" style="color: var(--accent-glow);">3.0</span>
                                 <label class="switch" style="position: relative; display: inline-block; width: 34px; height: 20px;">
@@ -747,7 +747,7 @@
  
                     <div class="setting-row">
                         <label class="setting-label">
-                            <span>Sampler Algorithm<span class="info-trigger" data-tooltip="Euler/DDIM is a fast 1st-order solver. Heun is a highly accurate 2nd-order predictor-corrector solver that decreases math errors in fewer steps.">ⓘ</span></span>
+                            <span>Sampler Algorithm<span class="info-trigger" data-tooltip="Euler/DDIM is a fast 1st-order solver. Heun is a highly accurate 2nd-order predictor-corrector solver that decreases math errors in fewer steps."><svg class="info-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width: 8px; height: 8px; display: block;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></span></span>
                         </label>
                         <div class="tabs"
                             style="align-self: flex-start; background: rgba(0,0,0,0.2); padding: 4px; border-radius: 20px; border: 1px solid var(--border-color); width: fit-content;">
@@ -762,7 +762,7 @@
  
                     <div class="setting-row">
                         <label class="setting-label">
-                            <span>Denoising Schedule (Power)<span class="info-trigger" data-tooltip="Controls the spacing of timesteps. Power exponents > 1.0 (Quadratic/Cubic/Karras) concentrate steps near t=0 where the drawing details emerge.">ⓘ</span></span>
+                            <span>Denoising Schedule (Power)<span class="info-trigger" data-tooltip="Controls the spacing of timesteps. Power exponents > 1.0 (Quadratic/Cubic/Karras) concentrate steps near t=0 where the drawing details emerge."><svg class="info-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width: 8px; height: 8px; display: block;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></span></span>
                             <span class="slider-value" id="scheduleValue" style="color: var(--accent-glow);">Linear
                                 (1.0)</span>
                         </label>

@@ -292,7 +292,7 @@ To update the model weights used by the CI runner:
 
 2. Commit and push the updated version files:
    ```sh
-   git add web/weights-version.txt docs/weights-version.txt
+   git add docs/weights-version.txt
    git commit -m "Update model weights version"
    git push origin master
    ```

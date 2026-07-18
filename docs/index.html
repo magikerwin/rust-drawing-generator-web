@@ -839,7 +839,11 @@
         // CFG Slider Update
         cfgSlider.addEventListener('input', () => {
             selectedCfgScale = parseFloat(cfgSlider.value);
-            cfgValue.textContent = selectedCfgScale.toFixed(1);
+            if (selectedCfgScale === 1.0) {
+                cfgValue.textContent = 'Disabled (1.0)';
+            } else {
+                cfgValue.textContent = selectedCfgScale.toFixed(1);
+            }
         });
 
         // Schedule Slider Update & helper mapping functions

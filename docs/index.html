@@ -621,13 +621,11 @@
                 <div class="hero-prediction">
                     <div class="hero-label" id="heroLabel">Awaiting Selection</div>
                     <div class="hero-conf" id="heroConf" style="visibility: hidden;">Target Class</div>
-                </div>
-
-                <!-- Parameters Settings -->
+                </div>                <!-- Parameters Settings -->
                 <div class="settings-section">
                     <div class="setting-row">
                         <label class="setting-label" for="stepsSlider">
-                            <span>Denoising Steps</span>
+                            <span>Denoising Steps<span class="info-trigger" data-tooltip="Controls the number of iterative sampling steps. More steps yield higher quality but take longer to compute.">ⓘ</span></span>
                             <span class="slider-value" id="stepsValue">16</span>
                         </label>
                         <div class="slider-container">
@@ -649,7 +647,7 @@
  
                     <div class="setting-row" id="cfgRow">
                         <label class="setting-label" for="cfgSlider">
-                            <span>Classifier-Free Guidance (CFG)</span>
+                            <span>Classifier-Free Guidance (CFG)<span class="info-trigger" data-tooltip="Amplifies class-specific details by extrapolating away from an unconditional baseline. Scale 1.0 disables CFG; 3.0 is recommended for sharp, clear strokes.">ⓘ</span></span>
                             <span class="slider-value" id="cfgValue" style="color: var(--accent-glow);">3.0</span>
                         </label>
                         <div class="slider-container">
@@ -657,10 +655,10 @@
                                 style="width: 100%;">
                         </div>
                     </div>
-
+ 
                     <div class="setting-row">
                         <label class="setting-label">
-                            <span>Sampler Algorithm</span>
+                            <span>Sampler Algorithm<span class="info-trigger" data-tooltip="Euler/DDIM is a fast 1st-order solver. Heun is a highly accurate 2nd-order predictor-corrector solver that decreases math errors in fewer steps.">ⓘ</span></span>
                         </label>
                         <div class="tabs"
                             style="align-self: flex-start; background: rgba(0,0,0,0.2); padding: 4px; border-radius: 20px; border: 1px solid var(--border-color); width: fit-content;">
@@ -672,10 +670,10 @@
                                 (2nd-Order)</button>
                         </div>
                     </div>
-
+ 
                     <div class="setting-row">
                         <label class="setting-label">
-                            <span>Denoising Schedule (Power)</span>
+                            <span>Denoising Schedule (Power)<span class="info-trigger" data-tooltip="Controls the spacing of timesteps. Power exponents > 1.0 (Quadratic/Cubic/Karras) concentrate steps near t=0 where the drawing details emerge.">ⓘ</span></span>
                             <span class="slider-value" id="scheduleValue" style="color: var(--accent-glow);">Linear
                                 (1.0)</span>
                         </label>

@@ -767,11 +767,12 @@
                                 (1.0)</span>
                         </label>
                         <div class="slider-container">
-                            <input type="range" id="scheduleSlider" min="1.0" max="7.0" value="1.0" step="0.5"
+                            <input type="range" id="scheduleSlider" min="0.5" max="7.0" value="1.0" step="0.5"
                                 style="width: 100%;">
                         </div>
                         <div
                             style="display: flex; justify-content: space-between; font-size: 0.65rem; color: var(--text-sub); margin-top: -4px; padding: 0 2px;">
+                            <span>Early Focus (0.5)</span>
                             <span>Linear (1.0)</span>
                             <span>Quadratic (2.0)</span>
                             <span>Cubic (3.0)</span>
@@ -956,7 +957,9 @@
 
         function updateScheduleLabel(val) {
             const num = parseFloat(val);
-            if (num === 1.0) {
+            if (num === 0.5) {
+                scheduleValue.textContent = 'Early Focus (0.5)';
+            } else if (num === 1.0) {
                 scheduleValue.textContent = 'Linear (1.0)';
             } else if (num === 2.0) {
                 scheduleValue.textContent = 'Quadratic (2.0)';

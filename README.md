@@ -238,7 +238,7 @@ The Axum server exposes a GET endpoint `/api/generate` that streams the progress
 
 - **Query Parameters**:
   - `class_id` (integer, required): The target class ID to generate.
-  - `steps` (integer, optional, default: `20`): Number of denoising steps (clamped between `5` and `100`).
+  - `steps` (integer, optional, default: `16`): Number of denoising steps (clamped between `1` and `128`).
   - `schedule` (string, optional, default: `"linear"`): Denoising schedule type or power exponent (e.g. `"linear"`, `"quadratic"`, or a custom float string like `"3.0"`, `"7.0"`).
   - `sampler` (string, optional, default: `"ddim"`): Denoising sampler algorithm: `"ddim"` or `"heun"`.
 

@@ -92,7 +92,7 @@ async fn generate_handler(
     State(state): State<AppState>,
     Query(query): Query<GenerateQuery>,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
-    let steps = query.steps.unwrap_or(20).clamp(5, 100);
+    let steps = query.steps.unwrap_or(16).clamp(1, 128);
     let schedule = query.schedule.as_deref().unwrap_or("linear");
     let sampler = query.sampler.as_deref().unwrap_or("ddim");
     

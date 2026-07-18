@@ -340,6 +340,7 @@ We train on a curated subset of **25 doodle classes**:
 - [Burn — Deep Learning Framework for Rust](https://burn.dev/)
 - [The Burn Book](https://burn.dev/book/)
 - [wasm-pack — Rust WebAssembly Packager](https://rustwasm.github.io/wasm-pack/)
+- [Rust Drawing Classifier Web (Original Fork Base)](https://github.com/magikerwin/rust-drawing-classifier-web)
 - [Denoising Diffusion Probabilistic Models (DDPM)](https://arxiv.org/abs/2006.11239)
 - [Denoising Diffusion Implicit Models (DDIM)](https://arxiv.org/abs/2010.02502)
 - [Classifier-Free Diffusion Guidance (Ho & Salimans, 2022)](https://arxiv.org/abs/2207.12598)

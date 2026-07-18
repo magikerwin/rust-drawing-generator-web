@@ -25,6 +25,7 @@ pub struct GeneratorWasm {
     current_step_idx: usize,
     sampler: String,
     prediction_type: String, // "noise" or "velocity"
+    cfg_scale: f32,
 }
 
 #[wasm_bindgen]
@@ -38,6 +39,7 @@ impl GeneratorWasm {
         schedule: String,
         sampler: String,
         prediction_type: Option<String>,
+        cfg_scale: Option<f32>,
     ) -> Result<GeneratorWasm, JsValue> {
         console_error_panic_hook::set_once();
         let device = Default::default();
@@ -103,6 +105,8 @@ impl GeneratorWasm {
             "noise".to_string()
         };
         
+        let cfg_scale_val = cfg_scale.unwrap_or(1.0);
+        
         Ok(Self {
             model,
             device,
@@ -113,6 +117,7 @@ impl GeneratorWasm {
             current_step_idx: 0,
             sampler,
             prediction_type,
+            cfg_scale: cfg_scale_val,
         })
     }
     
@@ -152,8 +157,20 @@ impl GeneratorWasm {
             None
         };
         
+        // Define guided forward pass closure
+        let unet_forward = |x: Tensor<NdArray, 4>, t_tensor: Tensor<NdArray, 1>| -> Tensor<NdArray, 4> {
+            if self.cfg_scale == 1.0 {
+                self.model.unet.forward(x, t_tensor, self.class_ids.clone())
+            } else {
+                let class_ids_uncond = Tensor::<NdArray, 1, Int>::from_ints([self.model.unet.num_classes as i32], &self.device);
+                let out_cond = self.model.unet.forward(x.clone(), t_tensor.clone(), self.class_ids.clone());
+                let out_uncond = self.model.unet.forward(x, t_tensor, class_ids_uncond);
+                out_uncond.clone() + (out_cond - out_uncond).mul_scalar(self.cfg_scale)
+            }
+        };
+        
         let timesteps = Tensor::<NdArray, 1>::from_floats([t as f32], &self.device);
-        let out_1 = self.model.unet.forward(self.x_t.clone(), timesteps, self.class_ids.clone());
+        let out_1 = unet_forward(self.x_t.clone(), timesteps);
         
         if self.prediction_type == "velocity" {
             // --- EDUCATIONAL: FLOW MATCHING REVERSE ODE SOLVERS ---
@@ -168,7 +185,7 @@ impl GeneratorWasm {
                 // Heun's 2nd-order predictor-corrector method:
                 let x_prev_pred = self.x_t.clone() - out_1.clone().mul_scalar(dt);
                 let prev_timesteps = Tensor::<NdArray, 1>::from_floats([prev_t_val as f32], &self.device);
-                let out_2 = self.model.unet.forward(x_prev_pred, prev_timesteps, self.class_ids.clone());
+                let out_2 = unet_forward(x_prev_pred, prev_timesteps);
                 let v_avg = (out_1 + out_2).mul_scalar(0.5);
                 self.x_t = self.x_t.clone() - v_avg.mul_scalar(dt);
             } else {
@@ -201,7 +218,7 @@ impl GeneratorWasm {
                 
                 // 3. CORRECTOR STEP:
                 let prev_timesteps = Tensor::<NdArray, 1>::from_floats([prev_t_val as f32], &self.device);
-                let epsilon_2 = self.model.unet.forward(x_prev_pred.clone(), prev_timesteps, self.class_ids.clone());
+                let epsilon_2 = unet_forward(x_prev_pred.clone(), prev_timesteps);
                 
                 // 4. PREDICT CLEAN x0_2:
                 let x0_2 = (x_prev_pred - epsilon_2.clone().mul_scalar(beta_prev.sqrt()))

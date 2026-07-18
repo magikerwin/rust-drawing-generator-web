@@ -929,11 +929,7 @@
         cfgSlider.addEventListener('input', () => {
             if (cfgToggle.checked) {
                 selectedCfgScale = parseFloat(cfgSlider.value);
-                if (selectedCfgScale === 1.0) {
-                    cfgValue.textContent = 'Disabled (1.0)';
-                } else {
-                    cfgValue.textContent = selectedCfgScale.toFixed(1);
-                }
+                cfgValue.textContent = selectedCfgScale.toFixed(1);
             }
         });
 
@@ -942,16 +938,12 @@
                 cfgSlider.disabled = false;
                 cfgSliderContainer.style.opacity = '1';
                 selectedCfgScale = parseFloat(cfgSlider.value);
-                if (selectedCfgScale === 1.0) {
-                    cfgValue.textContent = 'Disabled (1.0)';
-                } else {
-                    cfgValue.textContent = selectedCfgScale.toFixed(1);
-                }
+                cfgValue.textContent = selectedCfgScale.toFixed(1);
             } else {
                 cfgSlider.disabled = true;
                 cfgSliderContainer.style.opacity = '0.35';
                 selectedCfgScale = 1.0;
-                cfgValue.textContent = 'Disabled (1.0)';
+                cfgValue.textContent = 'Off';
             }
         });
 

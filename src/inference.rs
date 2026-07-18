@@ -60,14 +60,14 @@ pub fn generate_image_steps(
     // We then extrapolate:
     //   guided_out = uncond_out + cfg_scale * (cond_out - uncond_out)
     // When cfg_scale is 1.0, we bypass this and run standard conditional inference.
-    let unet_forward = |x: Tensor<NdArray, 4>, t_tensor: Tensor<NdArray, 1>| -> Tensor<NdArray, 4> {
-        if cfg_scale == 1.0 {
+    let unet_forward = |x: Tensor<NdArray, 4>, t_tensor: Tensor<NdArray, 1>, current_cfg: f32| -> Tensor<NdArray, 4> {
+        if current_cfg == 1.0 {
             model.unet.forward(x, t_tensor, class_ids.clone())
         } else {
             let class_ids_uncond = Tensor::<NdArray, 1, Int>::from_ints([model.unet.num_classes as i32], device);
             let out_cond = model.unet.forward(x.clone(), t_tensor.clone(), class_ids.clone());
             let out_uncond = model.unet.forward(x, t_tensor, class_ids_uncond);
-            out_uncond.clone() + (out_cond - out_uncond).mul_scalar(cfg_scale)
+            out_uncond.clone() + (out_cond - out_uncond).mul_scalar(current_cfg)
         }
     };
     
@@ -111,8 +111,15 @@ pub fn generate_image_steps(
             None
         };
         
+        let progress = if steps.len() > 1 {
+            i as f32 / (steps.len() - 1) as f32
+        } else {
+            0.0
+        };
+        let step_cfg = 1.0 + (cfg_scale - 1.0) * (1.0 - progress);
+        
         let timesteps = Tensor::<NdArray, 1>::from_floats([t as f32], device);
-        let out_1 = unet_forward(x_t.clone(), timesteps);
+        let out_1 = unet_forward(x_t.clone(), timesteps, step_cfg);
         
         if prediction_type == "velocity" {
             // --- EDUCATIONAL: FLOW MATCHING REVERSE ODE SOLVERS ---
@@ -136,7 +143,7 @@ pub fn generate_image_steps(
                 
                 // 2. Evaluate model's velocity field at the estimated future state
                 let prev_timesteps = Tensor::<NdArray, 1>::from_floats([prev_t_val as f32], device);
-                let out_2 = unet_forward(x_prev_pred, prev_timesteps);
+                let out_2 = unet_forward(x_prev_pred, prev_timesteps, step_cfg);
                 
                 // 3. Corrector: Update using the average of both velocities
                 let v_avg = (out_1 + out_2).mul_scalar(0.5);
@@ -180,7 +187,7 @@ pub fn generate_image_steps(
                 // Evaluate the U-Net again at the estimated intermediate state (x_prev_pred)
                 // at the future timestep (prev_t) to get the predicted future noise (epsilon_2).
                 let prev_timesteps = Tensor::<NdArray, 1>::from_floats([prev_t_val as f32], device);
-                let epsilon_2 = unet_forward(x_prev_pred.clone(), prev_timesteps);
+                let epsilon_2 = unet_forward(x_prev_pred.clone(), prev_timesteps, step_cfg);
                 
                 // 4. PREDICT CLEAN x0_2:
                 // Predict the clean image (x0_2) at the future timestep (prev_t) using epsilon_2

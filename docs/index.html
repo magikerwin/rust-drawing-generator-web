@@ -646,6 +646,17 @@
                             <span>128</span>
                         </div>
                     </div>
+ 
+                    <div class="setting-row" id="cfgRow">
+                        <label class="setting-label" for="cfgSlider">
+                            <span>Classifier-Free Guidance (CFG)</span>
+                            <span class="slider-value" id="cfgValue" style="color: var(--accent-glow);">3.0</span>
+                        </label>
+                        <div class="slider-container">
+                            <input type="range" id="cfgSlider" min="1.0" max="5.0" value="3.0" step="0.5"
+                                style="width: 100%;">
+                        </div>
+                    </div>
 
                     <div class="setting-row">
                         <label class="setting-label">
@@ -766,6 +777,8 @@
         const progressContainer = document.getElementById('progressContainer');
         const progressText = document.getElementById('progressText');
         const progressBarFill = document.getElementById('progressBarFill');
+        const cfgSlider = document.getElementById('cfgSlider');
+        const cfgValue = document.getElementById('cfgValue');
 
         // Lists of classes supported by different datasets
         const mnistClasses = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
@@ -805,6 +818,7 @@
         let activeEventSource = null;
         let wasmLoadError = null;
         let expectedVersion = null;
+        let selectedCfgScale = 3.0;
 
         // Developer Panel elements
         const toggleDebugLink = document.getElementById('toggleDebugLink');
@@ -820,6 +834,12 @@
         stepsSlider.addEventListener('input', () => {
             const actualSteps = stepOptions[parseInt(stepsSlider.value)];
             stepsValue.textContent = actualSteps;
+        });
+ 
+        // CFG Slider Update
+        cfgSlider.addEventListener('input', () => {
+            selectedCfgScale = parseFloat(cfgSlider.value);
+            cfgValue.textContent = selectedCfgScale.toFixed(1);
         });
 
         // Schedule Slider Update & helper mapping functions
@@ -974,6 +994,7 @@
 
             if (mode === 'server') {
                 datasetSelector.style.display = 'none';
+                document.getElementById('cfgRow').style.display = 'flex';
                 logToSystem('Switched to Server-side generation mode.');
                 // Re-fetch config to ensure synchronization
                 fetch('/api/config')
@@ -986,6 +1007,7 @@
                     });
             } else {
                 datasetSelector.style.display = 'flex';
+                document.getElementById('cfgRow').style.display = 'none';
                 logToSystem('Switched to client-side WebAssembly generation mode.');
 
                 // Select active tab
@@ -1194,7 +1216,7 @@
                 statusDot.className = 'predict-dot loading';
                 statusText.innerText = 'Server generating...';
 
-                const sseUrl = `/api/generate?class_id=${classId}&steps=${steps}&schedule=${selectedSchedule}&sampler=${selectedSampler}`;
+                const sseUrl = `/api/generate?class_id=${classId}&steps=${steps}&schedule=${selectedSchedule}&sampler=${selectedSampler}&cfg_scale=${selectedCfgScale}`;
                 activeEventSource = new EventSource(sseUrl);
 
                 activeEventSource.onmessage = (e) => {

@@ -13,10 +13,11 @@ pub struct MnistBatcher<B: Backend> {
     allow_flip: bool,
     scheduler: std::sync::Arc<DDIMScheduler>,
     prediction_type: String, // "noise" (DDPM) or "velocity" (Flow Matching)
+    num_classes: usize,
 }
 
 impl<B: Backend> MnistBatcher<B> {
-    pub fn new(device: B::Device, is_training: bool, allow_flip: bool, prediction_type: String) -> Self {
+    pub fn new(device: B::Device, is_training: bool, allow_flip: bool, prediction_type: String, num_classes: usize) -> Self {
         // Standard 1000-step linear schedule for training
         let scheduler = std::sync::Arc::new(DDIMScheduler::new(1000, 1e-4, 0.02));
         Self {
@@ -25,6 +26,7 @@ impl<B: Backend> MnistBatcher<B> {
             allow_flip,
             scheduler,
             prediction_type,
+            num_classes,
         }
     }
 }
@@ -86,8 +88,13 @@ impl<B: Backend> Batcher<MnistItem, MnistBatch<B>> for MnistBatcher<B> {
         let targets = items
             .iter()
             .map(|item| {
+                let mut label = item.label as usize;
+                // Classifier-free guidance training: randomly drop the class conditioning (15% drop rate)
+                if self.is_training && rng.gen_bool(0.15) {
+                    label = self.num_classes;
+                }
                 Tensor::<B, 1, Int>::from_data(
-                    TensorData::from([item.label as i32]),
+                    TensorData::from([label as i32]),
                     &self.device,
                 )
             })
@@ -178,7 +185,7 @@ mod tests {
     fn test_batcher() {
         type TestBackend = NdArray;
         let device = Default::default();
-        let batcher = MnistBatcher::<TestBackend>::new(device, false, false, "noise".to_string());
+        let batcher = MnistBatcher::<TestBackend>::new(device, false, false, "noise".to_string(), 10);
 
         let item1 = MnistItem {
             image: [[0.0; 28]; 28],

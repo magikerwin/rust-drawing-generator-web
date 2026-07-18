@@ -73,11 +73,11 @@ pub fn train<B: AutodiffBackend, D1, D2>(
     // Set the backend random seed for reproducible initialization and shuffling
     B::seed(config.seed);
 
-    // Initialize the batcher for training data, passing target type
-    let batcher_train = MnistBatcher::<B>::new(device.clone(), true, allow_horizontal_flip, config.prediction_type.clone());
+    // Initialize the batcher for training data, passing target type and num_classes
+    let batcher_train = MnistBatcher::<B>::new(device.clone(), true, allow_horizontal_flip, config.prediction_type.clone(), num_classes);
     
-    // Initialize the batcher for validation data, passing target type
-    let batcher_valid = MnistBatcher::<B::InnerBackend>::new(device.clone(), false, false, config.prediction_type.clone());
+    // Initialize the batcher for validation data, passing target type and num_classes
+    let batcher_valid = MnistBatcher::<B::InnerBackend>::new(device.clone(), false, false, config.prediction_type.clone(), num_classes);
 
     // Build the training DataLoader
     let dataloader_train = DataLoaderBuilder::new(batcher_train)

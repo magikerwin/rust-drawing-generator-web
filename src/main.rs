@@ -51,6 +51,7 @@ struct GenerateQuery {
     steps: Option<usize>,
     schedule: Option<String>,
     sampler: Option<String>,
+    cfg_scale: Option<f32>,
 }
 
 /// SSE step payload structure
@@ -95,6 +96,7 @@ async fn generate_handler(
     let steps = query.steps.unwrap_or(16).clamp(1, 128);
     let schedule = query.schedule.as_deref().unwrap_or("linear");
     let sampler = query.sampler.as_deref().unwrap_or("ddim");
+    let cfg_scale = query.cfg_scale.unwrap_or(3.0);
     
     // Perform progressive generation on the CPU using the model's prediction type
     let history = {
@@ -107,6 +109,7 @@ async fn generate_handler(
             schedule,
             sampler,
             &state.config.prediction_type,
+            cfg_scale,
         )
     };
 
@@ -271,7 +274,7 @@ async fn main() {
         println!("Generating drawing for class: '{}' (class ID: {}) using 20 steps...", class_name, class_id);
         
         let prediction_type = get_prediction_type_from_config(artifact_dir);
-        let history = generate_image_steps(&model, &device, class_id, 20, "linear", "ddim", &prediction_type);
+        let history = generate_image_steps(&model, &device, class_id, 20, "linear", "ddim", &prediction_type, 3.0);
         
         // Render final drawing as ASCII art
         println!("\nGenerated Output:");

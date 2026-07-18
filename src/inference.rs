@@ -39,22 +39,13 @@ pub fn generate_image_steps(
     schedule: &str,
     sampler: &str,
     prediction_type: &str,
+    cfg_scale: f32,
 ) -> Vec<Vec<f32>> {
     let scheduler = model_shared::DDIMScheduler::new(1000, 1e-4, 0.02);
     
     // Start with random Gaussian noise x_T ~ N(0, I)
     let mut x_t = Tensor::<NdArray, 4>::random(
         [1, 1, 28, 28],
-        burn::tensor::Distribution::Normal(0.0, 1.0),
-        device,
-    );
-    
-    let class_ids = Tensor::<NdArray, 1, Int>::from_ints([class_id as i32], device);
-    
-    // Generate skipped timesteps based on schedule type
-    let mut steps = Vec::new();
-    if schedule == "linear" {
-        // Linear spacing: spreads steps evenly across the 0..1000 range.
         let step_ratio = 1000 / num_steps;
         for i in (0..num_steps).rev() {
             steps.push(i * step_ratio);
@@ -92,7 +83,7 @@ pub fn generate_image_steps(
         };
         
         let timesteps = Tensor::<NdArray, 1>::from_floats([t as f32], device);
-        let out_1 = model.unet.forward(x_t.clone(), timesteps, class_ids.clone());
+        let out_1 = unet_forward(x_t.clone(), timesteps);
         
         if prediction_type == "velocity" {
             // --- EDUCATIONAL: FLOW MATCHING REVERSE ODE SOLVERS ---
@@ -116,7 +107,7 @@ pub fn generate_image_steps(
                 
                 // 2. Evaluate model's velocity field at the estimated future state
                 let prev_timesteps = Tensor::<NdArray, 1>::from_floats([prev_t_val as f32], device);
-                let out_2 = model.unet.forward(x_prev_pred, prev_timesteps, class_ids.clone());
+                let out_2 = unet_forward(x_prev_pred, prev_timesteps);
                 
                 // 3. Corrector: Update using the average of both velocities
                 let v_avg = (out_1 + out_2).mul_scalar(0.5);
@@ -157,10 +148,10 @@ pub fn generate_image_steps(
                 let x_prev_pred = x0_1.clone().mul_scalar(alpha_prev.sqrt()) + epsilon_1.clone().mul_scalar(beta_prev.sqrt());
                 
                 // 3. CORRECTOR STEP:
-                // Evaluate the model's U-Net again at the estimated intermediate state (x_prev_pred)
+                // Evaluate the U-Net again at the estimated intermediate state (x_prev_pred)
                 // at the future timestep (prev_t) to get the predicted future noise (epsilon_2).
                 let prev_timesteps = Tensor::<NdArray, 1>::from_floats([prev_t_val as f32], device);
-                let epsilon_2 = model.unet.forward(x_prev_pred.clone(), prev_timesteps, class_ids.clone());
+                let epsilon_2 = unet_forward(x_prev_pred.clone(), prev_timesteps);
                 
                 // 4. PREDICT CLEAN x0_2:
                 // Predict the clean image (x0_2) at the future timestep (prev_t) using epsilon_2
@@ -223,12 +214,12 @@ mod tests {
         let model = Model::<NdArray>::new(&device, 10);
         
         // Generate with 5 steps for test performance (DDPM mode)
-        let history = generate_image_steps(&model, &device, 3, 5, "linear", "ddim", "noise");
+        let history = generate_image_steps(&model, &device, 3, 5, "linear", "ddim", "noise", 1.0);
         assert_eq!(history.len(), 6); // 1 initial noise state + 5 denoising steps
         assert_eq!(history[0].len(), 784);
 
         // Generate with 5 steps for test performance (Flow Matching mode)
-        let history_fm = generate_image_steps(&model, &device, 3, 5, "linear", "ddim", "velocity");
+        let history_fm = generate_image_steps(&model, &device, 3, 5, "linear", "ddim", "velocity", 1.0);
         assert_eq!(history_fm.len(), 6);
         assert_eq!(history_fm[0].len(), 784);
     }

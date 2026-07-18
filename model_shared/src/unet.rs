@@ -66,7 +66,8 @@ pub struct ClassEmbedding<B: Backend> {
 
 impl<B: Backend> ClassEmbedding<B> {
     pub fn new(device: &B::Device, num_classes: usize, dim: usize) -> Self {
-        let embedding = EmbeddingConfig::new(num_classes, dim).init(device);
+        // Allocate num_classes + 1 slots to store the unconditional class embedding at index `num_classes`
+        let embedding = EmbeddingConfig::new(num_classes + 1, dim).init(device);
         let linear = LinearConfig::new(dim, dim * 4).init(device);
         Self { embedding, linear, dim }
     }
@@ -213,6 +214,7 @@ impl<B: Backend> SelfAttention<B> {
 /// A lightweight U-Net architecture for generating 28x28 drawings.
 #[derive(Module, Debug)]
 pub struct UNet<B: Backend> {
+    pub num_classes: usize,
     time_embed: TimeEmbedding<B>,
     class_embed: ClassEmbedding<B>,
     
@@ -288,6 +290,7 @@ impl<B: Backend> UNet<B> {
             .init(device);
         
         Self {
+            num_classes,
             time_embed,
             class_embed,
             conv_in,

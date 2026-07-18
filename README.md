@@ -29,7 +29,9 @@
 
 - **Conditional U-Net Architecture** — Sinusoidal time embedding module, class conditioning embedding module, self-attention modules, skip connections, and residual blocks.
 - **DDPM & Flow Matching (Rectified Flow) Support** — Dual support for both standard noise-prediction (DDPM/DDIM) and straight-line velocity-prediction (Flow Matching) generative paradigms.
-- **DDIM/Euler & Heun Scheduler Denoising** — Accelerated reverse sampling supporting both **DDIM/Euler (1st-Order)** and **Heun (2nd-Order)** samplers, with customizable **Polynomial Spacing Schedules** (exponents 1.0–7.0) to achieve superior drawing quality in as few as 5–10 steps.
+- **DDIM/Euler & Heun Scheduler Denoising** — Accelerated reverse sampling supporting both **DDIM/Euler (1st-Order)** and **Heun (2nd-Order)** samplers, with customizable **Polynomial Spacing Schedules** (exponents 0.25–7.0) to achieve superior drawing quality in as few as 5–10 steps.
+- **Classifier-Free Guidance (CFG) with Dynamic Linear Decay** — Extrapolates conditional predictions from an unconditional baseline to enhance semantic shape accuracy, utilizing a dynamic decay schedule to eliminate late-stage drawing artifacts.
+- **Interactive Educational Tooltips** — Sleek inline SVG information toggles that explain the parameter spaces on click or hover to guide user selections.
 - **Cosine Annealing Learning Rate Scheduler** — Smoothly decays the learning rate to zero during training to optimize final output convergence.
 - **Progressive Denoising Animation** — Visual progressive rendering showing the drawing emerge frame-by-frame from pure Gaussian noise.
 - **Dual Inference Modes** — Server-side Axum streaming via Server-Sent Events (SSE) and client-side WebAssembly local browser execution.

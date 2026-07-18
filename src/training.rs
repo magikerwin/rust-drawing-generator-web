@@ -14,7 +14,7 @@ use burn::{
     record::{CompactRecorder, BinFileRecorder, FullPrecisionSettings},
     tensor::backend::AutodiffBackend,
     train::{
-        metric::LossMetric,
+        metric::{LossMetric, LearningRateMetric},
         LearnerBuilder, RegressionOutput, TrainOutput, TrainStep, ValidStep,
     },
 };
@@ -110,6 +110,7 @@ pub fn train<B: AutodiffBackend, D1, D2>(
     let learner = LearnerBuilder::new(artifact_dir)
         .metric_train_numeric(LossMetric::new())      // Track training loss
         .metric_valid_numeric(LossMetric::new())      // Track validation loss
+        .metric_train_numeric(LearningRateMetric::new()) // Track learning rate during training
         .with_file_checkpointer(CompactRecorder::new()) // Save training checkpointers on disk
         .devices(vec![device.clone()])
         .num_epochs(config.num_epochs)

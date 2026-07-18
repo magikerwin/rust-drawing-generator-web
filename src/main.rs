@@ -213,7 +213,7 @@ async fn main() {
             .trim()
             .to_string();
 
-        let compiled_version = std::fs::read_to_string("web/weights-version.txt")
+        let compiled_version = std::fs::read_to_string("docs/weights-version.txt")
             .unwrap_or_else(|_| "unknown".to_string())
             .trim()
             .to_string();

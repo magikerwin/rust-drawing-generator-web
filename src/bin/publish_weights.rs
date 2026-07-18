@@ -127,7 +127,6 @@ fn main() {
 
     println!("Updating weights version files...");
     let version_files = [
-        root_path.join("web/weights-version.txt"),
         root_path.join("docs/weights-version.txt"),
     ];
 

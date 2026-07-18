@@ -27,7 +27,7 @@
 
 ## ✨ Features
 
-- **Conditional U-Net Architecture** — Sinusoidal time embedding module, class conditioning embedding module, skip connections, and residual blocks.
+- **Conditional U-Net Architecture** — Sinusoidal time embedding module, class conditioning embedding module, self-attention modules, skip connections, and residual blocks.
 - **DDPM & Flow Matching (Rectified Flow) Support** — Dual support for both standard noise-prediction (DDPM/DDIM) and straight-line velocity-prediction (Flow Matching) generative paradigms.
 - **DDIM/Euler & Heun Scheduler Denoising** — Accelerated reverse sampling supporting both **DDIM/Euler (1st-Order)** and **Heun (2nd-Order)** samplers, with customizable **Polynomial Spacing Schedules** (exponents 1.0–7.0) to achieve superior drawing quality in as few as 5–10 steps.
 - **Progressive Denoising Animation** — Visual progressive rendering showing the drawing emerge frame-by-frame from pure Gaussian noise.
@@ -51,10 +51,10 @@ Inputs: Latent State x_t [B×1×28×28], Timestep t [B], Class ID c [B]
       → Downsample 1: Conv2d(32→64 channels, Stride 2) [B×64×14×14]
       → Down Block 2: UNetBlock + Time/Class Injection [B×64×14×14]
       → Downsample 2: Conv2d(64→128 channels, Stride 2) [B×128×7×7]
-  → Bottleneck Middle Block: UNetBlock + Time/Class Injection [B×128×7×7]
+  → Bottleneck Middle Block: UNetBlock + Time/Class Injection + Self-Attention [B×128×7×7]
   → U-Net Decoder:
       → Upsample 1: ConvTranspose2d(128→64 channels, Stride 2) [B×64×14×14]
-      → Up Block 1: Concatenate(Upsample 1, Skip 2) → UNetBlock(128→64 channels) [B×64×14×14]
+      → Up Block 1: Concatenate(Upsample 1, Skip 2) → UNetBlock(128→64 channels) + Self-Attention [B×64×14×14]
       → Upsample 2: ConvTranspose2d(64→32 channels, Stride 2) [B×32×28×28]
       → Up Block 2: Concatenate(Upsample 2, Skip 1) → UNetBlock(64→32 channels) [B×32×28×28]
       → Output Layer: Conv2d(32→1 channels) [B×1×28×28]

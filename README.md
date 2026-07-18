@@ -342,6 +342,8 @@ We train on a curated subset of **25 doodle classes**:
 - [wasm-pack — Rust WebAssembly Packager](https://rustwasm.github.io/wasm-pack/)
 - [Denoising Diffusion Probabilistic Models (DDPM)](https://arxiv.org/abs/2006.11239)
 - [Denoising Diffusion Implicit Models (DDIM)](https://arxiv.org/abs/2010.02502)
+- [Classifier-Free Diffusion Guidance (Ho & Salimans, 2022)](https://arxiv.org/abs/2207.12598)
+- [Flow Matching for Generative Modeling (Lipman et al., 2022)](https://arxiv.org/abs/2210.02747)
 - [EMNIST Dataset (NIST Special Database 19)](https://www.nist.gov/itl/iad/image-group/emnist-dataset)
 - [Google Quick, Draw! Dataset](https://github.com/googlecreativelab/quickdraw-dataset)
 

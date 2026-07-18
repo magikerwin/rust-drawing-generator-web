@@ -15,7 +15,7 @@ pub struct Model<B: Backend> {
 impl<B: Backend> Model<B> {
     pub fn new(device: &B::Device, num_classes: usize) -> Self {
         Self {
-            unet: UNet::new(device, num_classes, 32),
+            unet: UNet::new(device, num_classes, 48),
         }
     }
 }

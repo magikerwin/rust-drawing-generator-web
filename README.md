@@ -43,22 +43,22 @@ The generator relies on a lightweight Denoising Diffusion Probabilistic Model (D
 
 ```
 Inputs: Latent State x_t [B×1×28×28], Timestep t [B], Class ID c [B]
-  → Time Embedding: Sinusoidal Positional Encoding (32) + MLP (32→128)
-  → Class Embedding: Embedding Lookup (32) + Linear Projection (32→128)
-  → Merged Embedding: Addition of Time & Class Embeddings [B×128]
+  → Time Embedding: Sinusoidal Positional Encoding (48) + MLP (48→192)
+  → Class Embedding: Embedding Lookup (48) + Linear Projection (48→192)
+  → Merged Embedding: Addition of Time & Class Embeddings [B×192]
   → U-Net Encoder:
-      → Stem: Conv2d(1→32 channels) [B×32×28×28]
-      → Down Block 1: UNetBlock + Time/Class Injection [B×32×28×28]
-      → Downsample 1: Conv2d(32→64 channels, Stride 2) [B×64×14×14]
-      → Down Block 2: UNetBlock + Time/Class Injection [B×64×14×14]
-      → Downsample 2: Conv2d(64→128 channels, Stride 2) [B×128×7×7]
-  → Bottleneck Middle Block: UNetBlock + Time/Class Injection + Self-Attention [B×128×7×7]
+      → Stem: Conv2d(1→48 channels) [B×48×28×28]
+      → Down Block 1: UNetBlock + Time/Class Injection [B×48×28×28]
+      → Downsample 1: Conv2d(48→96 channels, Stride 2) [B×96×14×14]
+      → Down Block 2: UNetBlock + Time/Class Injection [B×96×14×14]
+      → Downsample 2: Conv2d(96→192 channels, Stride 2) [B×192×7×7]
+  → Bottleneck Middle Block: UNetBlock + Time/Class Injection + Self-Attention [B×192×7×7]
   → U-Net Decoder:
-      → Upsample 1: ConvTranspose2d(128→64 channels, Stride 2) [B×64×14×14]
-      → Up Block 1: Concatenate(Upsample 1, Skip 2) → UNetBlock(128→64 channels) + Self-Attention [B×64×14×14]
-      → Upsample 2: ConvTranspose2d(64→32 channels, Stride 2) [B×32×28×28]
-      → Up Block 2: Concatenate(Upsample 2, Skip 1) → UNetBlock(64→32 channels) [B×32×28×28]
-      → Output Layer: Conv2d(32→1 channels) [B×1×28×28]
+      → Upsample 1: ConvTranspose2d(192→96 channels, Stride 2) [B×96×14×14]
+      → Up Block 1: Concatenate(Upsample 1, Skip 2) → UNetBlock(192→96 channels) + Self-Attention [B×96×14×14]
+      → Upsample 2: ConvTranspose2d(96→48 channels, Stride 2) [B×48×28×28]
+      → Up Block 2: Concatenate(Upsample 2, Skip 1) → UNetBlock(96→48 channels) [B×48×28×28]
+      → Output Layer: Conv2d(48→1 channels) [B×1×28×28]
 ```
 
 ---

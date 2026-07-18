@@ -726,9 +726,7 @@
                             <span>64</span>
                             <span>128</span>
                         </div>
-                    </div>
- 
-                    <div class="setting-row" id="cfgRow">
+                    </div>                    <div class="setting-row" id="cfgRow">
                         <label class="setting-label" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                             <span>Classifier-Free Guidance (CFG)<span class="info-trigger" data-tooltip="Amplifies class-specific details by extrapolating away from an unconditional baseline. Scale 1.0 disables CFG; 3.0 is recommended for sharp, clear strokes."><svg class="info-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width: 8px; height: 8px; display: block;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></span></span>
                             <div style="display: flex; align-items: center; gap: 8px;">
@@ -740,7 +738,7 @@
                             </div>
                         </label>
                         <div class="slider-container" id="cfgSliderContainer" style="transition: opacity 0.3s ease;">
-                            <input type="range" id="cfgSlider" min="1.0" max="5.0" value="3.0" step="0.5"
+                            <input type="range" id="cfgSlider" min="1.0" max="5.0" value="3.0" step="1.0"
                                 style="width: 100%;">
                         </div>
                     </div>
@@ -767,14 +765,15 @@
                                 (1.0)</span>
                         </label>
                         <div class="slider-container">
-                            <input type="range" id="scheduleSlider" min="0.5" max="7.0" value="1.0" step="0.5"
+                            <input type="range" id="scheduleSlider" min="0" max="5" value="2" step="1"
                                 style="width: 100%;">
                         </div>
                         <div
-                            style="display: flex; justify-content: space-between; font-size: 0.65rem; color: var(--text-sub); margin-top: -4px; padding: 0 2px;">
-                            <span>Early Focus (0.5)</span>
+                            style="display: flex; justify-content: space-between; font-size: 0.55rem; color: var(--text-sub); margin-top: -4px; padding: 0 2px;">
+                            <span>Extreme (0.25)</span>
+                            <span>Early (0.5)</span>
                             <span>Linear (1.0)</span>
-                            <span>Quadratic (2.0)</span>
+                            <span>Quad (2.0)</span>
                             <span>Cubic (3.0)</span>
                             <span>Karras (7.0)</span>
                         </div>
@@ -949,27 +948,17 @@
         });
 
         // Schedule Slider Update & helper mapping functions
+        const scheduleValues = ['0.25', '0.5', 'linear', 'quadratic', '3.0', '7.0'];
+        const scheduleDisplayNames = ['Extreme Early (0.25)', 'Early Focus (0.5)', 'Linear (1.0)', 'Quadratic (2.0)', 'Cubic (3.0)', 'Karras (7.0)'];
+
         function getScheduleParam(val) {
-            if (val === '1' || val === '1.0') return 'linear';
-            if (val === '2' || val === '2.0') return 'quadratic';
-            return val;
+            const idx = parseInt(val);
+            return scheduleValues[idx] || 'linear';
         }
 
         function updateScheduleLabel(val) {
-            const num = parseFloat(val);
-            if (num === 0.5) {
-                scheduleValue.textContent = 'Early Focus (0.5)';
-            } else if (num === 1.0) {
-                scheduleValue.textContent = 'Linear (1.0)';
-            } else if (num === 2.0) {
-                scheduleValue.textContent = 'Quadratic (2.0)';
-            } else if (num === 3.0) {
-                scheduleValue.textContent = 'Cubic (3.0)';
-            } else if (num === 7.0) {
-                scheduleValue.textContent = 'Karras (7.0)';
-            } else {
-                scheduleValue.textContent = `Exponent (${num.toFixed(1)})`;
-            }
+            const idx = parseInt(val);
+            scheduleValue.textContent = scheduleDisplayNames[idx] || 'Linear (1.0)';
         }
 
         scheduleSlider.addEventListener('input', () => {

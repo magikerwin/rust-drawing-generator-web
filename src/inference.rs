@@ -46,6 +46,35 @@ pub fn generate_image_steps(
     // Start with random Gaussian noise x_T ~ N(0, I)
     let mut x_t = Tensor::<NdArray, 4>::random(
         [1, 1, 28, 28],
+        burn::tensor::Distribution::Normal(0.0, 1.0),
+        device,
+    );
+    
+    let class_ids = Tensor::<NdArray, 1, Int>::from_ints([class_id as i32], device);
+    
+    // --- EDUCATIONAL: CLASSIFIER-FREE GUIDANCE (CFG) FORWARD PASS ---
+    // Classifier-Free Guidance (CFG) shifts the model's prediction away from an unconditional baseline.
+    // We define a helper closure that evaluates the network twice (if cfg_scale != 1.0):
+    //   - Once conditionally: model.unet.forward(x, t, class_id)
+    //   - Once unconditionally: model.unet.forward(x, t, num_classes) where num_classes is the reserved "null" class
+    // We then extrapolate:
+    //   guided_out = uncond_out + cfg_scale * (cond_out - uncond_out)
+    // When cfg_scale is 1.0, we bypass this and run standard conditional inference.
+    let unet_forward = |x: Tensor<NdArray, 4>, t_tensor: Tensor<NdArray, 1>| -> Tensor<NdArray, 4> {
+        if cfg_scale == 1.0 {
+            model.unet.forward(x, t_tensor, class_ids.clone())
+        } else {
+            let class_ids_uncond = Tensor::<NdArray, 1, Int>::from_ints([model.unet.num_classes as i32], device);
+            let out_cond = model.unet.forward(x.clone(), t_tensor.clone(), class_ids.clone());
+            let out_uncond = model.unet.forward(x, t_tensor, class_ids_uncond);
+            out_uncond.clone() + (out_cond - out_uncond).mul_scalar(cfg_scale)
+        }
+    };
+    
+    // Generate skipped timesteps based on schedule type
+    let mut steps = Vec::new();
+    if schedule == "linear" {
+        // Linear spacing: spreads steps evenly across the 0..1000 range.
         let step_ratio = 1000 / num_steps;
         for i in (0..num_steps).rev() {
             steps.push(i * step_ratio);

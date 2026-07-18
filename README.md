@@ -30,6 +30,7 @@
 - **Conditional U-Net Architecture** — Sinusoidal time embedding module, class conditioning embedding module, self-attention modules, skip connections, and residual blocks.
 - **DDPM & Flow Matching (Rectified Flow) Support** — Dual support for both standard noise-prediction (DDPM/DDIM) and straight-line velocity-prediction (Flow Matching) generative paradigms.
 - **DDIM/Euler & Heun Scheduler Denoising** — Accelerated reverse sampling supporting both **DDIM/Euler (1st-Order)** and **Heun (2nd-Order)** samplers, with customizable **Polynomial Spacing Schedules** (exponents 1.0–7.0) to achieve superior drawing quality in as few as 5–10 steps.
+- **Cosine Annealing Learning Rate Scheduler** — Smoothly decays the learning rate to zero during training to optimize final output convergence.
 - **Progressive Denoising Animation** — Visual progressive rendering showing the drawing emerge frame-by-frame from pure Gaussian noise.
 - **Dual Inference Modes** — Server-side Axum streaming via Server-Sent Events (SSE) and client-side WebAssembly local browser execution.
 - **Fully in Rust** — Training, scheduler, inference engine, and web frontend in a unified workspace.
@@ -96,6 +97,9 @@ rust-drawing-generator/
 
 ### Train the Model
 
+> [!WARNING]
+> **Migration Warning:** If you are migrating from an older checkpoint model (without Classifier-Free Guidance support), you **must delete the existing checkpoint directory** (e.g., `./target/mnist-model/`) before starting training. Otherwise, the model loading step will crash due to class embedding size shape mismatch (`num_classes + 1` rows).
+
 By default, training runs on the CPU (`NdArray` backend):
 
 ```sh
@@ -110,7 +114,7 @@ cargo run --release -- --gpu
 
 #### Training Configuration Flags:
 *   `--epochs <num>`: Customize the number of epochs to train (defaults to 5).
-*   `--lr <num>`: Customize the learning rate (defaults to 2e-4).
+*   `--lr <num>`: Customize the peak learning rate (defaults to 2e-4, decayed to 0 via Cosine Annealing).
 *   `--prediction-type <noise|velocity>`: Choose the target type (`noise` for DDPM/DDIM, `velocity` for Flow Matching).
 
 *(Note: These flags can be combined, for example: `cargo run --release -- --epochs 40 --lr 0.0003 --prediction-type velocity --gpu`)*
@@ -123,8 +127,8 @@ cargo run --release -- --gpu
 | :--- | :--- | :--- |
 | **Quick Run (~10 Mins)** | DDPM (Noise) | `cargo run --release -- --epochs 6 --lr 2.5e-4 --prediction-type noise --gpu` |
 | **Quick Run (~10 Mins)** | Flow Matching | `cargo run --release -- --epochs 6 --lr 8e-4 --prediction-type velocity --gpu` |
-| **Fully Converged** | DDPM (Noise) | `cargo run --release -- --epochs 15 --lr 2e-4 --prediction-type noise --gpu` |
-| **Fully Converged** | Flow Matching | `cargo run --release -- --epochs 20 --lr 5e-4 --prediction-type velocity --gpu` |
+| **Fully Converged** | DDPM (Noise) | `cargo run --release -- --epochs 25 --lr 2e-4 --prediction-type noise --gpu` |
+| **Fully Converged** | Flow Matching | `cargo run --release -- --epochs 30 --lr 5e-4 --prediction-type velocity --gpu` |
 
 ---
 To train on the **EMNIST Letters** dataset (26 classes):

@@ -1,3 +1,4 @@
+use burn::lr_scheduler::cosine::CosineAnnealingLrSchedulerConfig;
 use crate::{
     data::{MnistBatch, MnistBatcher},
     model::Model,
@@ -79,6 +80,18 @@ pub fn train<B: AutodiffBackend, D1, D2>(
     // Initialize the batcher for validation data, passing target type and num_classes
     let batcher_valid = MnistBatcher::<B::InnerBackend>::new(device.clone(), false, false, config.prediction_type.clone(), num_classes);
 
+    // Configure the Cosine Annealing Learning Rate Scheduler
+    let steps_per_epoch = (train_dataset.len() + config.batch_size - 1) / config.batch_size;
+    let total_steps = steps_per_epoch * config.num_epochs;
+    println!("Total training steps: {} ({} steps/epoch across {} epochs)", total_steps, steps_per_epoch, config.num_epochs);
+
+    let lr_scheduler = CosineAnnealingLrSchedulerConfig::new(
+        config.learning_rate,
+        total_steps,
+    )
+    .init()
+    .unwrap();
+
     // Build the training DataLoader
     let dataloader_train = DataLoaderBuilder::new(batcher_train)
         .batch_size(config.batch_size)
@@ -103,7 +116,7 @@ pub fn train<B: AutodiffBackend, D1, D2>(
         .build(
             Model::<B>::new(&device, num_classes), // Instantiate the Model wrapping UNet
             config.optimizer.init(),  // Initialize the optimizer state
-            config.learning_rate,    // Learning rate for training the diffusion model
+            lr_scheduler,    // Cosine learning rate scheduler
         );
 
     // Start the training and validation loops

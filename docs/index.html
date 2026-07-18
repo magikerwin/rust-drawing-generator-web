@@ -761,11 +761,10 @@
                     <div class="setting-row">
                         <label class="setting-label">
                             <span>Denoising Schedule (Power)<span class="info-trigger" data-tooltip="Controls the spacing of timesteps. Power exponents > 1.0 (Quadratic/Cubic/Karras) concentrate steps near t=0 where the drawing details emerge."><svg class="info-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width: 8px; height: 8px; display: block;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></span></span>
-                            <span class="slider-value" id="scheduleValue" style="color: var(--accent-glow);">Linear
-                                (1.0)</span>
+                            <span class="slider-value" id="scheduleValue" style="color: var(--accent-glow);">Early Focus (0.5)</span>
                         </label>
                         <div class="slider-container">
-                            <input type="range" id="scheduleSlider" min="0" max="5" value="2" step="1"
+                            <input type="range" id="scheduleSlider" min="0" max="5" value="1" step="1"
                                 style="width: 100%;">
                         </div>
                         <div
@@ -899,7 +898,7 @@
         let serverAvailable = false;
         let selectedClassIndex = 0;
         let isGenerating = false;
-        let selectedSchedule = 'linear';
+        let selectedSchedule = '0.5';
         let selectedSampler = 'ddim';
 
         let wasmModule = null;

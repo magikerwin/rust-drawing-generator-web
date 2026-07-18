@@ -299,6 +299,24 @@ To update the model weights used by the CI runner:
 
 ---
 
+## 💡 Recommended Parameters Setup
+
+To get the highest quality digit and doodle drawings at the best inference speeds, we recommend using the following parameters:
+
+* **Classifier-Free Guidance (CFG)**: **`On (3.0)`** (Amplifies class details during early stages)
+* **Denoising Schedule (Power)**: **`Early Focus (0.5)`** (Spends 70% of the step budget on global shape layouts)
+* **Sampler Algorithm**: **`Euler / DDIM (1st-Order)`** (Fastest inference mode, requiring only 2 forward passes per step)
+* **Denoising Steps**: **`16`** or **`32`**
+
+### 🧠 Dynamic Classifier-Free Guidance Decay
+This workspace implements a **Linear CFG Decay Schedule** in both the backend server (`src/inference.rs`) and local browser WebAssembly crate (`web/src/lib.rs`):
+$$\text{Scale}_{\text{step}} = 1.0 + (\text{Scale}_{\text{initial}} - 1.0) \times (1.0 - \text{progress})$$
+
+* **At early steps (noise to outline)**: CFG scale is at its maximum (e.g. `3.0`), strongly forcing the model to establish correct digit and category structures.
+* **At late steps (smoothing & sharpening)**: CFG decays to `1.0` (conditional-only), completely eliminating high-frequency stroke distortions and artifacts commonly caused by constant guidance.
+
+---
+
 ## 🎨 Quick, Draw! Generation Details
 
 This project supports doodle generation using a subset of the **[Quick, Draw! Dataset](https://github.com/googlecreativelab/quickdraw-dataset)**.

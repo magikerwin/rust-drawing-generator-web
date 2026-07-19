@@ -39,9 +39,9 @@ jobs:
           echo "Downloading version $VERSION weights..."
           
           # Attempt to download weights (do not fail the step on missing files)
-          curl -L -o docs/mnist-model.bin "https://github.com/magikerwin/rust-drawing-generator-web/releases/download/$VERSION/mnist-model.bin" || true
-          curl -L -o docs/quickdraw-model.bin "https://github.com/magikerwin/rust-drawing-generator-web/releases/download/$VERSION/quickdraw-model.bin" || true
-          curl -L -o docs/emnist-model.bin "https://github.com/magikerwin/rust-drawing-generator-web/releases/download/$VERSION/emnist-model.bin" || true
+          curl -L -o docs/mnist-model.bin "https://github.com/magikerwin/burn-drawing-generator-web/releases/download/$VERSION/mnist-model.bin" || true
+          curl -L -o docs/quickdraw-model.bin "https://github.com/magikerwin/burn-drawing-generator-web/releases/download/$VERSION/quickdraw-model.bin" || true
+          curl -L -o docs/emnist-model.bin "https://github.com/magikerwin/burn-drawing-generator-web/releases/download/$VERSION/emnist-model.bin" || true
           
           # If any weight file is missing or contains GitHub's 404 HTML page, replace it with an empty placeholder
           for file in mnist-model.bin quickdraw-model.bin emnist-model.bin; do
@@ -89,7 +89,7 @@ jobs:
           echo "Waiting 60s for GitHub Pages CDN to propagate..."
           sleep 60
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-            https://magikerwin.github.io/rust-drawing-generator-web/pkg/mnist_web_bg.wasm)
+            https://magikerwin.github.io/burn-drawing-generator-web/pkg/mnist_web_bg.wasm)
           if [ "$STATUS" != "200" ]; then
             echo "ERROR: WASM file returned HTTP $STATUS — deployment may be broken!"
             exit 1

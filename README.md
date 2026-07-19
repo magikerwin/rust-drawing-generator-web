@@ -2,7 +2,7 @@
 
 > An interactive drawing generator utilizing a Denoising Diffusion Probabilistic Model (DDPM/DDIM) built with the [Burn](https://burn.dev/) deep learning framework in Rust. Generate handwritten digits, letters, or doodles right in your browser!
 >
-> 🚀 **[Try the Live WebAssembly Demo!](https://magikerwin.github.io/rust-drawing-generator-web/)**
+> 🚀 **[Try the Live WebAssembly Demo!](https://magikerwin.github.io/burn-drawing-generator-web/)**
 
 ![image](assets/web_demo.webp)
 
@@ -68,7 +68,7 @@ Inputs: Latent State x_t [B×1×28×28], Timestep t [B], Class ID c [B]
 ## 📁 Project Structure
 
 ```
-rust-drawing-generator/
+burn-drawing-generator/
 ├── model_shared/           # Shared library workspace crate
 │   ├── src/lib.rs          # Model architecture & DDIMScheduler definition
 │   ├── src/unet.rs         # Conditional U-Net blocks and modules
